@@ -4,7 +4,7 @@ const base = process.env.PICO_URL || 'https://keff.uk/pico';
 // Re-read the document and check every referenced bundle on each bounded retry.
 let page, html;
 for (let attempt = 0; attempt < 12; attempt++) {
-  page = await fetch(`${base}?release-check=${Date.now()}`, { cache: 'no-store' });
+  page = await fetch(`${base}/?release-check=${Date.now()}`, { cache: 'no-store' });
   assert.equal(page.status, 200);
   html = await page.text();
   const paths = [...html.matchAll(/(?:src|href)="(\/pico\/assets\/[^"\s]+)"/g)].map(match => match[1]);
