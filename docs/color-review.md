@@ -9,7 +9,7 @@ Scope: dark generated views, four selectable accent themes, data charts, tasks, 
 
 No actionable color findings remain in the inspected states.
 
-Verification: 860 rendered foreground/background pairs, including all four themes on each of the six view types at 1280 × 800, 390 × 844 and 320 × 568, plus the bar-chart variant. Backgrounds are computed from the actual ancestor surface stack; text is never placed over the photographs. WCAG 2 contrast is computed from rendered sRGB values; APCA uses `apca-w3`. Output is saved in ignored `output/playwright/colors.json` and `colors-bars.json`.
+Verification: 784 rendered foreground/background pairs, including all four themes on each of the six view types at 1280 × 800, 390 × 844 and 320 × 568, plus the bar-chart variant. Backgrounds are computed from the actual ancestor surface stack; text is never placed over the photographs. WCAG 2 contrast is computed from rendered sRGB values; APCA uses `apca-w3`. Output is saved in ignored `output/playwright/colors.json` and `colors-bars.json`.
 
 | Theme | Minimum text ratio | Minimum meaningful graphic ratio | Minimum text APCA magnitude |
 | --- | --- | --- | --- |

@@ -71,7 +71,6 @@ export function Preview({ plan, content, busy, onChange }: Props) {
     {photo && <figure className="preview-photo"><img src={photo.src} alt={photo.alt} width="960" height="440" fetchPriority="high" /></figure>}
     <div className="view-heading">
       <div className="view-title"><span className="view-symbol" aria-hidden="true"><ViewIcon size={22} /></span><h2>{content?.title || <Skeleton className="h-8 w-2/3" />}</h2></div>
-      {content?.description ? <p>{content.description}</p> : busy ? <Skeleton className="mt-3 h-4 w-4/5" /> : null}
     </div>
 
     {items.length === 0 ? <div aria-label="Filling interface content"><PendingView view={plan.view} /></div> : <>

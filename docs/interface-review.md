@@ -8,7 +8,7 @@ Scope: the complete prompt-to-preview flow, six generated layouts, local control
 | Layout | Single viewport shell, VisualViewport resize handling, height-aware preview pagination; 18 view/viewport cases in `scripts/check-interface.mjs` | No page or horizontal preview overflow; standard fixture content fits without scrolling |
 | Writing | All product strings in `src/App.tsx` and `src/Preview.tsx`; API errors in `worker/index.ts` | Decorative slogans removed; errors offer recovery; model and privacy information confined to the details window |
 | Typography | Geist variable font, larger heading and input sizes, unitless line heights, 16 px minimum inputs, tabular numeric values | Clear |
-| Colors | Dark semantic tokens in `src/styles.css`; rendered contrast evaluated by axe across all six layouts | Four generated accent ramps; 860 rendered contrast pairs pass the inspected thresholds; no green or lime palette |
+| Colors | Dark semantic tokens in `src/styles.css`; rendered contrast evaluated by axe across all six layouts | Four generated accent ramps; 784 rendered contrast pairs pass the inspected thresholds; no green or lime palette |
 | UI | Native dialogs, shadcn controls, color-specific loading layouts, progressive data-driven SVG charts, completion rings, timeline and plan graphics, local photos, reduced-motion rules and local selection states | Clear |
 
 No actionable interface findings remain in the inspected states.
