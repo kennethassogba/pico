@@ -26,7 +26,13 @@ const image = Buffer.from(await card.arrayBuffer());
 assert.equal(image.readUInt32BE(16), 1200);
 assert.equal(image.readUInt32BE(20), 630);
 assert.match(html, /Pico/);
-const health = await fetch(`${base}/api/health`).then(r => r.json());
+// Worker propagation can lag the asset upload at a particular edge too.
+let health;
+for (let attempt = 0; attempt < 30; attempt++) {
+  health = await fetch(`${base}/api/health?release-check=${Date.now()}`, { cache: 'no-store' }).then(r => r.json());
+  if (health.ready && health.decisionModel === 'gpt-6-luna' && health.generationModel === 'gpt-6-luna' && health.provider === 'openai') break;
+  if (attempt < 29) await new Promise(resolve => setTimeout(resolve, 1000));
+}
 assert.equal(health.ready, true);
 assert.equal(health.decisionModel, 'gpt-6-luna');
 assert.equal(health.generationModel, 'gpt-6-luna');
