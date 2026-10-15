@@ -4,7 +4,7 @@ A minimal chat that turns requests into interactive shadcn interfaces. [Open Pic
 
 The dark interface keeps a bottom composer and a restrained shell. Generated views add SVG charts, completion rings, a project board, visual collections, forms, pricing and timelines. Luna chooses among six accent themes and six locally served illustrative photographs when the subject matches. Content appears from streamed JSON, with reduced-motion support. Technical metadata and JSON export stay in the details dialog.
 
-`gpt-6-luna` selects a layout, accent and visual through OpenAI’s native Decisions API. The layout renders as soon as the decision arrives. Luna then fills it through the Responses API with streamed strict JSON, reasoning disabled, `store: false` and a 2,600-token output bound. Content renders incrementally and becomes interactive after validation. One generation request runs per prompt; there is no model race or OpenRouter dependency. The server request has a 15-second deadline.
+`gpt-6-luna` selects a layout, accent and visual through OpenAI’s native Decisions API. The layout renders as soon as the decision arrives. Luna then fills it through the Responses API with streamed strict JSON, reasoning disabled, `store: false` and a 2,600-token output bound. Useful values lead the stream: dashboard metrics arrive before the chart, and item names and values precede supporting copy. Rendering is batched per animation frame. Checkboxes and collection entries work while later items are still streaming. Completed output is validated before it enters the next prompt. One generation request runs per prompt; there is no model race or OpenRouter dependency. The server request has a 15-second deadline.
 
 The catalog includes dashboard, checklist, form, pricing, comparison, itinerary, board and gallery. Checkboxes, task additions, field entries, moving board cards and selecting plans or collection cards work locally. Follow-up prompts refine the current preview. JSON export downloads the content and selected layout; it is not an application source export.
 
@@ -48,3 +48,7 @@ The app uses a single viewport with a bottom composer on mobile. Preview pages k
 API references: [OpenAI Decisions](https://developers.openai.com/api/docs/guides/decisions), [Responses](https://developers.openai.com/api/docs/guides/text), [Cloudflare CLI](https://developers.cloudflare.com/cf/projects/cloudflare-config/).
 
 Output schema validation determines whether an interface is complete. Photo source and license links are recorded in `public/images/README.md`.
+
+## Visuals and sharing
+
+Creative collections use typographic covers when there is no exact matching image. Photos are local, subject-specific illustrations; they never fall back to an unrelated image. Collection entries open a full detail view. The app link uses native sharing when available, clipboard copying otherwise, and a selectable link if clipboard permission is unavailable. Prompts and generated content are not included in the app share link.

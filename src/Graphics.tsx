@@ -21,7 +21,7 @@ export function DataChart({ items, bars = false }: { items: Content['items']; ba
       {[24, 86, 148].map(pos => <line className="chart-guide" key={pos} x1="0" x2="600" y1={pos} y2={pos} />)}
       {bars ? values.map((value, i) => <rect className="data-bar" key={i} x={i / Math.max(1, values.length) * 552 + 24} y={Math.min(y(value), baseline)} width={Math.min(64, 400 / Math.max(1, values.length))} height={Math.max(2, Math.abs(baseline - y(value)))} rx="5" />) : <>
         {points.length > 1 && <path className="area-fill" d={`${line} L${x(items.length - 1)},${baseline} L24,${baseline} Z`} fill={`url(#${id})`} />}
-        <path key={items.length} className="data-line" d={line} pathLength="1" />
+        <path className="data-line" d={line} pathLength="1" />
         {values.map((value, i) => <circle className="data-point" key={i} cx={x(i)} cy={y(value)} r="4" />)}
       </>}
     </svg>

@@ -88,6 +88,14 @@ describe('OpenAI Luna contract', () => {
     expect(body.reasoning).toEqual({ effort: 'none' });
     expect(body.text.format).toMatchObject({ type: 'json_schema', strict: true });
     expect(body.text.format.schema.properties.items.items.required).toContain('image');
+    expect(Object.keys(body.text.format.schema.properties)).toEqual(['title', 'items', 'labels', 'metrics', 'description']);
+    expect(Object.keys(body.text.format.schema.properties.items.items.properties)).toEqual(['name', 'value', 'image', 'detail']);
+  });
+  it('streams dashboard metrics before its items and supporting copy', async () => {
+    const fetcher = vi.fn(async () => new Response(sse(JSON.stringify(content))));
+    for await (const event of generation(input, { ...plan, view: 'dashboard' }, 'test-key', new AbortController().signal, fetcher as typeof fetch)) void event;
+    const payload = JSON.parse((fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    expect(Object.keys(payload.text.format.schema.properties)).toEqual(['title', 'metrics', 'items', 'labels', 'description']);
   });
   it('never marks empty or truncated model output as complete', async () => {
     for (const text of ['', '{"title":"unfinished', '{}']) {

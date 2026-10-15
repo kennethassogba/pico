@@ -59,7 +59,7 @@ try {
   await advance();
   await page.getByText('Ready to try', { exact: true }).waitFor();
   assert.equal(await page.locator('.data-point').count(), 4);
-  assert.equal(await page.locator('.metric-grid [data-slot=card]').count(), 2);
+  assert.equal(await page.locator('.metric-grid .metric').count(), 2);
   assert.equal(await page.locator('.generated-view [data-slot=skeleton]').count(), 0);
   await page.screenshot({ path: 'output/playwright/synthesis-complete.png' });
   await page.getByRole('textbox', { name: 'Describe your interface' }).fill('Now plan an afternoon in Kyoto');

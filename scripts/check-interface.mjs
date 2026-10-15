@@ -78,7 +78,7 @@ try {
         await page.getByText('Preview submitted locally. Nothing was sent or saved.', { exact: true }).waitFor();
       }
       if (view === 'board') { await page.getByRole('button', { name: 'Move Write the first draft to Doing' }).click(); assert.equal(await page.getByRole('button', { name: 'Move Write the first draft to Done' }).count(), 1); }
-      if (view === 'gallery') { await page.locator('.gallery-entry').first().click(); assert.equal(await page.locator('.gallery-entry').first().getAttribute('aria-pressed'), 'true'); }
+      if (view === 'gallery') { await page.locator('.gallery-entry').first().click(); assert.equal(await page.locator('.gallery-entry').first().getAttribute('aria-pressed'), 'true'); await page.getByRole('button', { name: 'Close collection item' }).click(); }
       if (view === 'pricing') {
         await page.getByRole('button', { name: 'Select Personal', exact: true }).click();
         await page.getByRole('button', { name: 'Selected', exact: true }).waitFor();
@@ -97,7 +97,7 @@ try {
     await page.getByRole('button', { name: 'Try again', exact: true }).waitFor();
     assert.equal(await page.getByLabel('itinerary preview', { exact: true }).count(), 1);
     await page.getByRole('button', { name: 'About Pico', exact: true }).click();
-    await page.getByRole('heading', { name: 'About this interface', exact: true }).waitFor();
+    await page.getByRole('heading', { name: 'About Pico', exact: true }).waitFor();
     await page.keyboard.press('Escape');
     assert.equal(await page.getByRole('button', { name: 'About Pico', exact: true }).evaluate(el => el === document.activeElement), true);
     await context.close();
