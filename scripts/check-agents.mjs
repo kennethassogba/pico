@@ -17,7 +17,7 @@ try {
   assert.equal(invalid.isError, true);
   const blocked = await fetch(`${base}/mcp`, { method: 'POST', headers: { Origin: 'https://other.example', 'Content-Type': 'application/json' }, body: '{}' });
   assert.equal(blocked.status, 403);
-  const oversized = await fetch(`${base}/mcp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: 'x'.repeat(17000) });
+  const oversized = await fetch(`${base}/mcp`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': '17000' }, body: 'x'.repeat(17000) });
   assert.equal(oversized.status, 413);
   const md = await fetch(base, { headers: { Accept: 'text/markdown' } });
   assert.match(md.headers.get('content-type'), /text\/markdown/);
