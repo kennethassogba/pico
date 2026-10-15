@@ -137,7 +137,7 @@ export async function handle(request: Request, env: Env, ctx: ExecutionContext):
     }
     return new Response(null, { status: 405, headers: { ...security, Allow: 'POST' } });
   }
-  const document = url.pathname === BASE || url.pathname.startsWith(`${BASE}/`) ? discovery(request) : null;
+  const document = url.pathname === BASE || url.pathname.startsWith(`${BASE}/`) ? await discovery(request) : null;
   if (document) return document;
   if (url.pathname === `${BASE}/api/health`) return json({ ready: Boolean(env.OPENROUTER_API_KEY), decisionModel: DECIDER, generationModel: GENERATOR });
   if (url.pathname !== `${BASE}/api/generate`) {

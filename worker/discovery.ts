@@ -42,7 +42,7 @@ Only inception/mercury-decide:free and openrouter/free are requested. Prompts, s
 Generation has a 55-second server timeout and is limited to six requests per IP and eighteen total per minute per Cloudflare location. MCP and browser generation share these limits. Retry after a minute if throttled. Do not include secrets or personal data in example prompts.
 `;
 
-export function discovery(request: Request): Response | null {
+export async function discovery(request: Request): Promise<Response | null> {
   const { pathname } = new URL(request.url);
   const path = pathname.slice('/pico'.length);
   const headers = { Link: agentLinks, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'public, max-age=300' };
@@ -50,8 +50,14 @@ export function discovery(request: Request): Response | null {
   const json = (value: unknown, type = 'application/json') => body(JSON.stringify(value), type);
   if (request.method !== 'GET' && request.method !== 'HEAD') return null;
   if (path === '/index.md' || path === '/llms.txt' || ((path === '' || path === '/') && acceptsMarkdown(request.headers.get('Accept') || ''))) return body(guide);
-  if (path === '/skills/generate-interface/SKILL.md') return body(`---\nname: generate-interface\ndescription: Generate or refine a Pico interface from prebuilt shadcn layouts.\n---\n\n${guide}`);
-  if (path === '/.well-known/agent-skills/index.json') return json({ skills: [{ name: 'generate-interface', description: 'Generate or refine an interactive interface.', url: `${home}/skills/generate-interface/SKILL.md` }] });
+  const skillDescription = 'Generate or refine a Pico interface from prebuilt shadcn layouts.';
+  const skill = `---\nname: generate-interface\ndescription: ${skillDescription}\n---\n\n${guide}`;
+  if (path === '/skills/generate-interface/SKILL.md') return body(skill);
+  if (path === '/.well-known/agent-skills/index.json') {
+    const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(skill));
+    const digest = `sha256:${Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, '0')).join('')}`;
+    return json({ $schema: 'https://schemas.agentskills.io/discovery/0.2.0/schema.json', skills: [{ name: 'generate-interface', type: 'skill-md', description: skillDescription, url: `${home}/skills/generate-interface/SKILL.md`, digest }] });
+  }
   if (path === '/.well-known/api-catalog') return json({ linkset: [{ anchor: home, 'service-desc': [{ href: `${home}/openapi.json`, type: 'application/vnd.oai.openapi+json' }], 'service-doc': [{ href: `${home}/index.md`, type: 'text/markdown' }] }] }, 'application/linkset+json');
   if (path === '/.well-known/mcp/server-card.json') return json({
     $schema: 'https://static.modelcontextprotocol.io/schemas/mcp-server-card/v1.json', version: '1.0', protocolVersion: '2025-11-25',

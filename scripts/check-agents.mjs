@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
@@ -26,5 +27,9 @@ try {
     assert.equal(response.status, 200, path);
     await response.json();
   }
+  const index = await fetch(`${base}/.well-known/agent-skills/index.json`).then(r => r.json());
+  const skill = await fetch(`${base}/skills/generate-interface/SKILL.md`).then(r => r.arrayBuffer());
+  assert.equal(index.skills[0].type, 'skill-md');
+  assert.equal(index.skills[0].digest, `sha256:${createHash('sha256').update(Buffer.from(skill)).digest('hex')}`);
   console.log('MCP initialize, tool discovery, component call, input/origin/body boundaries and agent documents verified.');
 } finally { await client.close(); }
