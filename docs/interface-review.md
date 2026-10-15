@@ -13,7 +13,7 @@ Scope: the complete prompt-to-preview flow, six generated layouts, local control
 
 No actionable interface findings remain in the inspected states.
 
-Verification: `npm run check`; `npm test` (12 API and provider contract tests); `npm run test:ui` (18 layout/viewport combinations, empty states, axe audits, local interactions, error recovery, dialog Escape/focus restoration). The UI script uses explicit provider fixtures. Separate live OpenRouter calls verified Mercury selection and free-router generation; fixture timing is not a live latency benchmark. Screenshots and machine-readable results are written to the ignored `output/playwright` directory.
+Verification: `npm run check`; `npm test` (15 API, provider and discovery contract tests); `npm run test:ui` (18 layout/viewport combinations, empty states, axe audits, local interactions, error recovery, dialog Escape/focus restoration). The UI script uses explicit provider fixtures. Separate live OpenRouter calls verified Mercury selection and free-router generation; fixture timing is not a live latency benchmark. Screenshots and machine-readable results are written to the ignored `output/playwright` directory.
 
 Not verified: a physical iOS/Android keyboard, a screen reader, and browser-level 200% zoom. The preview panel and dialogs retain scrolling as an accessibility fallback for exceptionally long generated content or enlarged text. This review is not a claim of complete WCAG conformance.
 

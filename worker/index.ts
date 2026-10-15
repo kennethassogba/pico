@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { accents, contentSchema, requestSchema, viewSchema, type Plan } from '../src/schema';
 import type { InferEnv } from 'cf/config';
 import type config from '../cloudflare.config';
+import { agentLinks, discovery } from './discovery';
 
 const DECIDER = 'inception/mercury-decide:free';
 const GENERATOR = 'openrouter/free';
@@ -30,7 +31,7 @@ export async function readBounded(body: ReadableStream<Uint8Array> | null, limit
       const { value, done } = await reader.read();
       if (done) break;
       bytes += value.byteLength;
-      if (bytes > limit) { await reader.cancel(); throw new ApiError(413, 'This request is too long. Shorten it and try again.'); }
+      if (bytes > limit) throw new ApiError(413, 'This request is too long. Shorten it and try again.');
       text += decoder.decode(value, { stream: true });
     }
     return text + decoder.decode();
@@ -122,8 +123,22 @@ export async function* generation(input: z.infer<typeof requestSchema>, plan: Pl
   yield { type: 'content' as const, content, model };
 }
 
-export async function handle(request: Request, env: Env, ctx: ExecutionContext) {
+export async function handle(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
+  if (url.pathname === `${BASE}/mcp`) {
+    if (request.headers.get('Origin') && request.headers.get('Origin') !== url.origin) return json({ error: 'Cross-origin MCP requests are unavailable.' }, 403);
+    if (Number(request.headers.get('Content-Length')) > MAX_BODY) return json({ error: 'Shorten your request and try again.' }, 413);
+    if (request.method === 'POST') {
+      try {
+        const body = await readBounded(request.body, MAX_BODY);
+        const { mcp } = await import('./mcp');
+        return await mcp(new Request(request, { body }), ctx, next => handle(next, env, ctx));
+      } catch (error) { return json({ error: error instanceof ApiError ? error.message : 'Invalid MCP request.' }, error instanceof ApiError ? error.status : 400); }
+    }
+    return new Response(null, { status: 405, headers: { ...security, Allow: 'POST' } });
+  }
+  const document = url.pathname === BASE || url.pathname.startsWith(`${BASE}/`) ? discovery(request) : null;
+  if (document) return document;
   if (url.pathname === `${BASE}/api/health`) return json({ ready: Boolean(env.OPENROUTER_API_KEY), decisionModel: DECIDER, generationModel: GENERATOR });
   if (url.pathname !== `${BASE}/api/generate`) {
     if (url.pathname !== BASE && !url.pathname.startsWith(`${BASE}/`)) return json({ error: 'Not found.' }, 404);
@@ -132,6 +147,7 @@ export async function handle(request: Request, env: Env, ctx: ExecutionContext) 
     if (!import.meta.env.DEV) assetUrl.pathname = url.pathname.slice(BASE.length) || '/';
     const result = await env.ASSETS.fetch(new Request(assetUrl, request));
     const headers = new Headers(result.headers);
+    if (url.pathname === BASE || url.pathname === `${BASE}/`) { headers.set('Link', agentLinks); headers.append('Vary', 'Accept'); }
     for (const [name, value] of Object.entries(security)) {
       if (import.meta.env.DEV && name === 'Content-Security-Policy') continue;
       headers.set(name, value);

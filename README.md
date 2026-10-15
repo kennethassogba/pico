@@ -14,6 +14,21 @@ Use Node.js 24. Run `npm ci`, add `OPENROUTER_API_KEY` to the ignored `.dev.vars
 
 Run `npm run check`, `npm test` and `npm run test:ui` with the dev server running. The interface checks use explicit mocked provider events; they do not establish live model performance. Run `npx cf deploy --dry-run` to validate the production bundle.
 
+## Agents and link previews
+
+Connect an MCP client to `https://keff.uk/pico/mcp` using Streamable HTTP. Cloudflare's Agents SDK provides the stateless transport, with MCP SDK v2 and legacy client compatibility. `list_components` returns the available layouts; `generate_interface` calls the same real generation pipeline and rate limiters as the browser. It returns validated interface data, never executable code. The endpoint is public and needs no user credential. It cannot read another browser's preview or conversation.
+
+Pico follows the applicable [Cloudflare Agent Readiness conventions](https://blog.cloudflare.com/agent-readiness/): Markdown negotiation (`Accept: text/markdown`), `/index.md`, Link discovery headers, an RFC 9727 API catalog, OpenAPI, a draft MCP server card and an Agent Skills document. These resources live under `/pico` and are advertised in its response headers; origin-root discovery remains owned by the portfolio. No OAuth or commerce support is advertised. This is not a claim of a scanner score or support for every emerging standard.
+
+- [Agent guide](https://keff.uk/pico/index.md)
+- [API catalog](https://keff.uk/pico/.well-known/api-catalog)
+- [MCP server card](https://keff.uk/pico/.well-known/mcp/server-card.json)
+- [OpenAPI](https://keff.uk/pico/openapi.json)
+
+Run `node scripts/check-agents.mjs` against the local Worker, or set `PICO_URL=https://keff.uk/pico` for production. It uses a real MCP client to initialize, discover and call the catalog tool, and checks validation and origin/body limits without consuming model capacity.
+
+Static Open Graph and Twitter metadata reference a 1200 × 630 PNG of the real interface. Social crawlers can retrieve the image without running JavaScript. Network-specific preview caches may take time to refresh.
+
 ## Deployment
 
 GitHub Actions verifies each push to `main`, then deploys the Cloudflare Worker `pico-keff`. Add `CLOUDFLARE_API_TOKEN` as a repository Actions secret. It needs Workers Scripts edit on the configured account, Workers Routes edit and Zone read on `keff.uk`, plus Account Settings read for CLI account discovery. The token belongs only in encrypted GitHub secrets.

@@ -30,6 +30,7 @@ jobs:
           trap 'kill "$server_pid"' EXIT
           curl --retry 20 --retry-connrefused --retry-delay 1 --fail --silent http://127.0.0.1:5174/pico/ > /dev/null
           npm run test:ui
+          node scripts/check-agents.mjs
       - name: Validate the production bundle
         run: npx cf deploy --dry-run
       - name: Deploy keff.uk/pico
@@ -42,4 +43,6 @@ jobs:
           npx cf deploy --prebuilt --tag "${{ github.sha }}"
       - name: Verify public deployment
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        run: node scripts/smoke-live.mjs
+        run: |
+          node scripts/smoke-live.mjs
+          PICO_URL=https://keff.uk/pico node scripts/check-agents.mjs
