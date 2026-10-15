@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, ArrowUpRight, BarChart3, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, CreditCard, Layers3, ListChecks, MessageSquare, Plus, Wallet } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, BarChart3, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, CreditCard, Image, KanbanSquare, Layers3, ListChecks, MessageSquare, Plus, Wallet } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Content, Plan, ViewType } from './schema';
 import { CompletionRing, DataChart } from './Graphics';
-import { media } from './media';
+import { photoFor } from './media';
 
 type Props = { plan: Plan; content?: Partial<Content>; busy: boolean; onChange: (content: Content) => void };
 
@@ -36,27 +36,29 @@ function Pager({ page, pages, setPage }: { page: number; pages: number; setPage:
 export function Preview({ plan, content, busy, onChange }: Props) {
   const [page, setPage] = useState(0);
   const [checked, setChecked] = useState<Set<number>>(new Set());
+  const [statuses, setStatuses] = useState<Record<number, number>>({});
   const [selected, setSelected] = useState<number | null>(null);
   const [notice, setNotice] = useState('');
   useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(''), 5000); return () => clearTimeout(timer); }, [notice]);
   const [newTask, setNewTask] = useState('');
   const [invalidField, setInvalidField] = useState<number | null>(null);
   const root = useRef<HTMLDivElement>(null);
+  const [stageWidth, setStageWidth] = useState(760);
   const [stageHeight, setStageHeight] = useState(600);
   useEffect(() => {
     const stage = root.current?.closest('.preview-stage');
     if (!stage) return;
-    const observer = new ResizeObserver(([entry]) => setStageHeight(entry.contentRect.height));
+    const observer = new ResizeObserver(([entry]) => { setStageHeight(entry.contentRect.height); setStageWidth(entry.contentRect.width); });
     observer.observe(stage);
     return () => observer.disconnect();
   }, []);
-  const items = (Array.isArray(content?.items) ? content.items : []).filter(item => item && typeof item.name === 'string').map(item => ({ name: item.name, detail: typeof item.detail === 'string' ? item.detail : '', value: typeof item.value === 'string' ? item.value : '' }));
-  const photo = plan.visual === 'kyoto' || plan.visual === 'coffee' ? media[plan.visual] : null;
-  const pageSize = plan.view === 'pricing' || stageHeight < 440 ? 1 : plan.view === 'form' || stageHeight < 600 || photo ? 2 : 3;
+  const items = (Array.isArray(content?.items) ? content.items : []).filter(item => item && typeof item.name === 'string').map(item => ({ image: item.image, name: item.name, detail: typeof item.detail === 'string' ? item.detail : '', value: typeof item.value === 'string' ? item.value : '' }));
+  const photo = photoFor(plan.visual);
+  const pageSize = plan.view === 'gallery' ? (stageHeight < 440 ? 1 : 2) : plan.view === 'board' ? (stageWidth < 600 || stageHeight < 440 ? 1 : 3) : plan.view === 'pricing' || stageHeight < 440 ? 1 : plan.view === 'form' || stageHeight < 600 || photo ? 2 : 3;
   const pages = Math.max(1, Math.ceil(items.length / pageSize));
   const currentPage = Math.min(page, pages - 1);
   const visible = items.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
-  const ViewIcon = { dashboard: BarChart3, checklist: ListChecks, form: MessageSquare, pricing: Layers3, comparison: Layers3, itinerary: CalendarDays }[plan.view];
+  const ViewIcon = { dashboard: BarChart3, checklist: ListChecks, form: MessageSquare, pricing: Layers3, comparison: Layers3, itinerary: CalendarDays, board: KanbanSquare, gallery: Image }[plan.view];
 
 
   function addTask(event: React.FormEvent) {
@@ -68,7 +70,7 @@ export function Preview({ plan, content, busy, onChange }: Props) {
   }
 
   return <div ref={root} className={`generated-view view-${plan.view} ${stageHeight < 440 ? 'is-compact' : ''}`} data-accent={plan.accent} data-synthesizing={busy || undefined} aria-label={`${plan.view} preview`} aria-busy={busy}>
-    {photo && <figure className="preview-photo"><img src={photo.src} alt={photo.alt} width="960" height="440" fetchPriority="high" /></figure>}
+    {photo && plan.view !== 'gallery' && <figure className="preview-photo"><img src={photo.src} alt={photo.alt} width="960" height="440" fetchPriority="high" /></figure>}
     <div className="view-heading">
       <div className="view-title"><span className="view-symbol" aria-hidden="true"><ViewIcon size={22} /></span><h2>{content?.title || <Skeleton className="h-8 w-2/3" />}</h2></div>
     </div>
@@ -113,6 +115,10 @@ export function Preview({ plan, content, busy, onChange }: Props) {
       </CardContent></Card>; })}</div>}
 
       {plan.view === 'comparison' && <div className="comparison-wrap"><Table><TableHeader><TableRow>{(content?.labels || ['Option', 'Details', 'Value']).slice(0, 3).map((label, i) => <TableHead key={i}>{label}</TableHead>)}</TableRow></TableHeader><TableBody>{visible.map((item, i) => <TableRow key={currentPage * pageSize + i}><TableCell className="font-medium"><span className="comparison-name"><span className="option-symbol" aria-hidden="true"><Layers3 size={16} /></span>{item.name}</span></TableCell><TableCell>{item.detail}</TableCell><TableCell><span className="comparison-value">{item.value}</span></TableCell></TableRow>)}</TableBody></Table></div>}
+
+      {plan.view === 'board' && <div className="kanban-board">{[0, 1, 2].map(column => <section className="kanban-column" key={column} aria-label={content?.labels?.[column] || ['Todo', 'Doing', 'Done'][column]}><h3><span className={`board-state state-${column}`} />{content?.labels?.[column] || ['Todo', 'Doing', 'Done'][column]}<span>{visible.filter((item, i) => (statuses[currentPage * pageSize + i] ?? Math.max(0, ['Todo', 'Doing', 'Done'].indexOf(item.value))) === column).length}</span></h3>{visible.map((item, i) => { const index = currentPage * pageSize + i; const status = statuses[index] ?? Math.max(0, ['Todo', 'Doing', 'Done'].indexOf(item.value)); return status === column && <Card className="board-card" key={index}><CardContent><span className="item-index">{String(index + 1).padStart(2, '0')}</span><h4>{item.name}</h4><p>{item.detail}</p><Button variant="ghost" disabled={busy} onClick={() => setStatuses(old => ({ ...old, [index]: (status + 1) % 3 }))} aria-label={`Move ${item.name} to ${['Todo', 'Doing', 'Done'][(status + 1) % 3]}`}>{['Todo', 'Doing', 'Done'][(status + 1) % 3]}<ArrowRight size={13} /></Button></CardContent></Card>; })}</section>)}</div>}
+
+      {plan.view === 'gallery' && <div className="gallery-grid">{visible.map((item, i) => <button className={`gallery-entry ${selected === currentPage * pageSize + i ? 'gallery-selected' : ''}`} key={i} disabled={busy} aria-pressed={selected === currentPage * pageSize + i} onClick={() => { setSelected(currentPage * pageSize + i); setNotice(`${item.name} selected in this preview.`); }}>{(photoFor(item.image) || photo) ? <img src={(photoFor(item.image) || photo)!.src} alt={(photoFor(item.image) || photo)!.alt} width="960" height="440" style={{ objectPosition: `${30 + i * 40}% center` }} /> : <span className="gallery-art" aria-hidden="true"><span /><span /><span /></span>}<span className="gallery-caption"><span><strong>{item.name}</strong><span>{item.detail}</span></span><span className="gallery-tag">{item.value}{selected === currentPage * pageSize + i ? <Check size={16} /> : <ArrowUpRight size={16} />}</span></span></button>)}</div>}
 
       {plan.view === 'itinerary' && <div className="itinerary-list">{visible.map((item, i) => <div className="itinerary-row" key={i}><span className="time">{item.value}</span><span className="timeline-dot" aria-hidden="true"><Clock3 size={15} /></span><div><h3>{item.name}</h3><p>{item.detail}</p></div></div>)}</div>}
 

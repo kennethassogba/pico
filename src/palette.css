@@ -20,6 +20,16 @@
   --orange-500: #d36d00;
   --orange-700: #783e0b;
   --orange-950: #2a180c;
+  --cyan-100: #c2e8f8;
+  --cyan-300: #55caf4;
+  --cyan-500: #009bc3;
+  --cyan-700: #005971;
+  --cyan-950: #072029;
+  --amber-100: #efe0c0;
+  --amber-300: #deb459;
+  --amber-500: #b08400;
+  --amber-700: #664b00;
+  --amber-950: #241c08;
 }
 [data-accent="violet"] {
   --accent-soft: var(--violet-950);
@@ -51,5 +61,21 @@
   --chart-soft: var(--orange-500);
   --accent-solid: var(--orange-300);
   --accent-text: var(--orange-100);
+  --accent-contrast: var(--background);
+}
+[data-accent="cyan"] {
+  --accent-soft: var(--cyan-950);
+  --accent-border: var(--cyan-700);
+  --chart-soft: var(--cyan-500);
+  --accent-solid: var(--cyan-300);
+  --accent-text: var(--cyan-100);
+  --accent-contrast: var(--background);
+}
+[data-accent="amber"] {
+  --accent-soft: var(--amber-950);
+  --accent-border: var(--amber-700);
+  --chart-soft: var(--amber-500);
+  --accent-solid: var(--amber-300);
+  --accent-text: var(--amber-100);
   --accent-contrast: var(--background);
 }

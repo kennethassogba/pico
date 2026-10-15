@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
-export const viewTypes = ['dashboard', 'checklist', 'form', 'pricing', 'comparison', 'itinerary'] as const;
-export const accents = ['violet', 'blue', 'rose', 'orange'] as const;
-export const visuals = ['area', 'bars', 'kyoto', 'coffee', 'none'] as const;
+export const viewTypes = ['dashboard', 'checklist', 'form', 'pricing', 'comparison', 'itinerary', 'board', 'gallery'] as const;
+export const accents = ['violet', 'blue', 'rose', 'orange', 'cyan', 'amber'] as const;
+export const visuals = ['area', 'bars', 'kyoto', 'coffee', 'desert', 'santorini', 'mountains', 'architecture', 'none'] as const;
 export const viewSchema = z.enum(viewTypes);
 export type ViewType = z.infer<typeof viewSchema>;
 export const contentSchema = z.object({
@@ -10,6 +10,7 @@ export const contentSchema = z.object({
   description: z.string().max(240),
   labels: z.array(z.string().max(48)).min(2).max(4),
   items: z.array(z.object({
+    image: z.enum(['kyoto', 'coffee', 'desert', 'santorini', 'mountains', 'architecture']).optional(),
     name: z.string().min(1).max(100),
     detail: z.string().max(200),
     value: z.string().max(60),
@@ -26,5 +27,5 @@ export const requestSchema = z.object({
 }).strict();
 
 export const viewNames: Record<ViewType, string> = {
-  dashboard: 'Dashboard', checklist: 'Checklist', form: 'Form', pricing: 'Pricing', comparison: 'Comparison', itinerary: 'Itinerary',
+  dashboard: 'Dashboard', checklist: 'Checklist', form: 'Form', pricing: 'Pricing', comparison: 'Comparison', itinerary: 'Itinerary', board: 'Board', gallery: 'Gallery',
 };

@@ -8,7 +8,7 @@ export async function mcp(request: Request, ctx: ExecutionContext, generate: (re
   const handler = createMcpHandler(() => {
     const server = new McpServer({ name: 'pico', version: '1.1.0' });
     server.registerTool('list_components', {
-      description: 'List the six available prebuilt shadcn interface layouts.', inputSchema: z.object({}).strict(),
+      description: 'List the eight available prebuilt shadcn interface layouts.', inputSchema: z.object({}).strict(),
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     }, async () => ({ content: [{ type: 'text' as const, text: JSON.stringify(componentCatalog) }], structuredContent: { components: componentCatalog } }));
     server.registerTool('generate_interface', {
@@ -27,7 +27,7 @@ export async function mcp(request: Request, ctx: ExecutionContext, generate: (re
       const error = events.find(event => event.type === 'error');
       if (error) return fail(error.error);
       const plan = events.find(event => event.type === 'plan')?.plan;
-      const complete = events.find(event => event.type === 'complete');
+      const complete = events.findLast(event => event.type === 'upgrade' || event.type === 'complete');
       if (!plan || !complete) return fail('The connection ended before the interface was ready. Try again.');
       const result = { plan, content: complete.content, generationModel: complete.generationModel, totalMs: complete.totalMs, sampleData: true };
       return { content: [{ type: 'text', text: JSON.stringify(result) }], structuredContent: result };

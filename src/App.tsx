@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Preview, samplePrompts } from './Preview';
 import { contentSchema, viewNames, type Content, type Plan, type Result } from './schema';
 import { GENERATOR } from './models';
-import { media } from './media';
+import { photoFor } from './media';
 
 type Phase = 'idle' | 'deciding' | 'filling';
 type Entry = { role: 'user' | 'assistant'; content: string };
@@ -28,6 +28,8 @@ export default function App() {
   const help = useRef<HTMLDialogElement>(null);
   const historyDialog = useRef<HTMLDialogElement>(null);
   const backup = useRef<Result | null>(null);
+  const revision = useRef(0);
+  const touched = useRef(false);
   const busy = phase !== 'idle';
 
   useEffect(() => () => controller.current?.abort(), []);
@@ -41,15 +43,17 @@ export default function App() {
   function restore() { const old = backup.current; setResult(old); setPlan(old?.plan ?? null); setContent(old?.content); }
 
   async function generate(text: string) {
-    if (controller.current || text.trim().length < 3) {
-      if (!controller.current) { setError('Describe your idea in at least 3 characters.'); input.current?.focus(); }
+    if (busy || text.trim().length < 3) {
+      if (!busy) { setError('Describe your idea in at least 3 characters.'); input.current?.focus(); }
       return;
     }
+    controller.current?.abort();
+    const run = ++revision.current; touched.current = false;
     const abort = new AbortController(); controller.current = abort;
     backup.current = result;
     setError(''); setNotice(''); setPhase('deciding'); setLastPrompt(text.trim()); setPrompt('');
     let nextPlan: Plan | null = null, generated = '', completed = false;
-    const timeout = setTimeout(() => abort.abort('timeout'), 65_000);
+    const timeout = setTimeout(() => abort.abort('timeout'), 18_000);
     try {
       const response = await fetch('/pico/api/generate', {
         method: 'POST', signal: abort.signal, headers: { 'Content-Type': 'application/json' },
@@ -62,7 +66,7 @@ export default function App() {
       try {
         for (;;) {
           const { value, done } = await reader.read();
-          if (done) break;
+          if (done || run !== revision.current) break;
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split('\n'); buffer = lines.pop() || '';
           for (const line of lines) {
@@ -75,26 +79,27 @@ export default function App() {
               try { const partial = parse(generated); if (partial && typeof partial === 'object' && !Array.isArray(partial)) setContent(partial); } catch { /* Incomplete JSON is expected while streaming. */ }
             }
             if (event.type === 'reset') { generated = ''; setContent(undefined); }
-            if (event.type === 'complete' && nextPlan) {
+            if ((event.type === 'complete' || (event.type === 'upgrade' && !touched.current)) && nextPlan) {
               const valid = contentSchema.parse(event.content);
               const next = { plan: nextPlan, content: valid, generationModel: event.generationModel, totalMs: event.totalMs };
-              setContent(valid); setResult(next); backup.current = next; completed = true;
-              setHistory(old => [...old, { role: 'user' as const, content: text.trim() }, { role: 'assistant' as const, content: `Created ${viewNames[nextPlan!.view].toLowerCase()}: ${valid.title}` }].slice(-6));
+              setContent(valid); setResult(next); backup.current = next; completed = true; setPhase('idle');
+              if (event.type === 'complete') setHistory(old => [...old, { role: 'user' as const, content: text.trim() }, { role: 'assistant' as const, content: `Created ${viewNames[nextPlan!.view].toLowerCase()}: ${valid.title}` }].slice(-6));
             }
           }
         }
       } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
       if (!completed) throw new Error('The connection ended before the interface was ready. Try again.');
     } catch (err) {
+      if (run !== revision.current || completed) return;
       restore();
       if (abort.signal.aborted && abort.signal.reason !== 'timeout') setNotice('Stopped. Your previous preview is still here.');
       else setError(abort.signal.reason === 'timeout' ? 'The model took too long. Try again with a shorter request.' : err instanceof Error ? err.message : 'Pico could not connect. Try again.');
       setPrompt(text.trim());
-    } finally { clearTimeout(timeout); controller.current = null; setPhase('idle'); }
+    } finally { clearTimeout(timeout); if (run === revision.current) { controller.current = null; setPhase('idle'); } }
   }
 
   function startOver() {
-    controller.current?.abort();
+    revision.current++; controller.current?.abort(); controller.current = null; setPhase('idle');
     if (result) backup.current = result;
     setResult(null); setPlan(null); setContent(undefined); setHistory([]); setError(''); setLastPrompt(''); setPrompt('');
     setNotice('Started a fresh preview.'); input.current?.focus();
@@ -109,7 +114,7 @@ export default function App() {
 
   function openHelp() { help.current?.showModal(); }
   const status = phase === 'deciding' ? 'Choosing a layout…' : phase === 'filling' ? 'Filling your interface…' : result ? 'Ready to try' : 'Ready for an idea';
-  const photo = plan?.visual === 'kyoto' || plan?.visual === 'coffee' ? media[plan.visual] : null;
+  const photos = [...new Set([plan?.visual, ...(content?.items || []).map(item => item.image)])].map(photoFor).filter(Boolean);
 
   return <div className={`app-shell ${plan || busy || error ? 'has-preview' : 'is-empty'}`}>
     <a className="skip-link" href="#prompt">Skip to prompt</a>
@@ -125,7 +130,7 @@ export default function App() {
       {(plan || busy || error) && <section className="preview-panel" aria-label="Generated interface">
         <h1 className="sr-only">Your interface</h1>
         {lastPrompt && <button className="request-bubble" onClick={() => historyDialog.current?.showModal()} aria-label="View chat"><span>{lastPrompt}</span></button>}
-        <div className="preview-stage" role="region" aria-label="Interface preview" tabIndex={0}><div className="stage-inner">
+        <div className="preview-stage" onPointerDownCapture={() => { touched.current = true; }} onKeyDownCapture={() => { touched.current = true; }} role="region" aria-label="Interface preview" tabIndex={0}><div className="stage-inner">
           {plan ? <Preview key={previewKey} plan={plan} content={content} busy={busy} onChange={next => { setContent(next); setResult(old => old ? { ...old, content: next } : old); }} /> : busy ? <div className="choosing-state" role="status"><LoaderCircle className="spinner" size={20} /><span>Choosing a layout…</span></div> : null}
         </div></div>
       </section>}
@@ -144,9 +149,9 @@ export default function App() {
     <dialog ref={help} className="info-dialog" onClick={event => { if (event.target === event.currentTarget) help.current?.close(); }}>
       <div className="dialog-heading"><h2>About this interface</h2><Button variant="ghost" size="icon" onClick={() => help.current?.close()} aria-label="Close about Pico"><X size={20} /></Button></div>
       <dl><dt>Layout model</dt><dd>inception/mercury-decide:free</dd><dt>Content model</dt><dd>{result?.generationModel || GENERATOR}</dd>{result && <><dt>Response time</dt><dd>Layout: {timing(result.plan.decisionMs)} · Content: {timing(result.totalMs)}</dd></>}</dl>
-      <p>Built from six prebuilt shadcn layouts. Content streams in after the layout is chosen. Only free OpenRouter models are used; availability depends on provider limits.</p>
+      <p>Built from eight prebuilt shadcn layouts. Content streams in after the layout is chosen. Only free OpenRouter models are used; availability depends on provider limits.</p>
       <p>This is an interactive prototype with illustrative content. Form entries, selections and edits stay in this tab. Prompts and the current preview are sent to OpenRouter. Pico does not store conversations.</p>
-      {photo && <p>Illustrative photo by <a href={photo.source} target="_blank" rel="noreferrer">{photo.author} on Unsplash</a>.</p>}
+      {photos.length > 0 && <p>Illustrative photos: {photos.map((photo, i) => <span key={photo!.src}>{i > 0 && ", "}<a href={photo!.source} target="_blank" rel="noreferrer">{photo!.author} on Unsplash</a></span>)}.</p>}
       <div className="detail-actions">{result && <Button variant="outline" onClick={download}><Download size={16} />Download data</Button>}<a href="https://github.com/kennethassogba/pico" target="_blank" rel="noreferrer">GitHub<ArrowUpRight size={14} /></a><a href="https://keff.uk/">k<sub>eff</sub><ArrowUpRight size={14} /></a></div>
       {result && <details className="data-details"><summary>Interface data</summary><pre tabIndex={0} aria-label="Interface JSON">{JSON.stringify({ view: result.plan.view, ...result.content }, null, 2)}</pre></details>}
     </dialog>

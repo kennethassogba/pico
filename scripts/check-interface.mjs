@@ -25,9 +25,10 @@ function payload(view) {
   const content = structuredClone(fixture);
   if (view === 'form') { content.labels[0] = 'Send feedback'; content.items = [{ name: 'Name', detail: 'Alex', value: 'text' }, { name: 'Email', detail: 'alex@example.com', value: 'email' }, { name: 'Comment', detail: 'What worked well?', value: 'textarea' }]; }
   if (view === 'pricing') { content.items = [{ name: 'Personal', detail: 'One workspace;Unlimited notes;JSON export', value: '€9 / month' }, { name: 'Team', detail: 'Shared workspaces;Team notes;Priority support', value: '€19 / month' }]; }
+  if (view === 'board') content.items = content.items.slice(0, 3).map((item, i) => ({ ...item, value: ['Todo', 'Doing', 'Done'][i] }));
   if (view === 'itinerary') content.items = content.items.map((item, i) => ({ ...item, value: `${9 + i}:00` }));
   return [
-    { type: 'plan', plan: { view, accent: { dashboard: 'blue', checklist: 'rose', form: 'orange', pricing: 'violet', comparison: 'blue', itinerary: 'orange' }[view], visual: { dashboard: 'area', form: 'coffee', itinerary: 'kyoto' }[view] || 'none', confidence: 0.95, decisionMs: 325, model: 'inception/mercury-decide:free' } },
+    { type: 'plan', plan: { view, accent: { dashboard: 'blue', checklist: 'rose', form: 'orange', pricing: 'violet', comparison: 'blue', board: 'cyan', gallery: 'amber', itinerary: 'orange' }[view], visual: { dashboard: 'area', form: 'coffee', gallery: 'desert', itinerary: 'kyoto' }[view] || 'none', confidence: 0.95, decisionMs: 325, model: 'inception/mercury-decide:free' } },
     { type: 'delta', text: JSON.stringify(content) },
     { type: 'complete', content, generationModel: 'test-fixture:free', totalMs: 1800 },
   ].map(event => JSON.stringify(event)).join('\n') + '\n';
@@ -43,7 +44,7 @@ try {
     const emptyAudit = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     assert.equal(emptyAudit.violations.length, 0, `Empty ${size.width}: ${JSON.stringify(emptyAudit.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => n.target) })))}`);
     await page.screenshot({ path: `output/playwright/empty-${size.width}.png` });
-    for (const view of ['dashboard', 'checklist', 'form', 'pricing', 'comparison', 'itinerary']) {
+    for (const view of ['dashboard', 'checklist', 'form', 'pricing', 'comparison', 'board', 'gallery', 'itinerary']) {
       await page.route('**/pico/api/generate', route => route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: payload(view) }));
       await page.getByRole('textbox', { name: 'Describe your interface' }).fill(`Build a ${view}.`);
       await page.getByRole('button', { name: 'Generate interface', exact: true }).click();
@@ -74,6 +75,8 @@ try {
         await page.getByRole('button', { name: 'Send feedback', exact: true }).click();
         await page.getByText('Preview submitted locally. Nothing was sent or saved.', { exact: true }).waitFor();
       }
+      if (view === 'board') { await page.getByRole('button', { name: 'Move Write the first draft to Doing' }).click(); assert.equal(await page.getByRole('button', { name: 'Move Write the first draft to Done' }).count(), 1); }
+      if (view === 'gallery') { await page.locator('.gallery-entry').first().click(); assert.equal(await page.locator('.gallery-entry').first().getAttribute('aria-pressed'), 'true'); }
       if (view === 'pricing') {
         await page.getByRole('button', { name: 'Select Personal', exact: true }).click();
         await page.getByRole('button', { name: 'Selected', exact: true }).waitFor();
