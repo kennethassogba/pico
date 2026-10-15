@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "geist",
+        "createdAt": "2026-10-15T02:14:20.047Z",
+        "reason": "Agent decision: Geist is intentional for Pico's user-requested minimal dark shadcn interface and Vercel styling."
+      }
+    ]
+  }
+}
