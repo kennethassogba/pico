@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, ArrowUpRight, Check, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, BarChart3, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, CreditCard, Layers3, ListChecks, MessageSquare, Plus, Wallet } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Content, Plan, ViewType } from './schema';
+import { CompletionRing, DataChart } from './Graphics';
+import { media } from './media';
 
 type Props = { plan: Plan; content?: Partial<Content>; busy: boolean; onChange: (content: Content) => void };
 
@@ -36,6 +38,7 @@ export function Preview({ plan, content, busy, onChange }: Props) {
   const [checked, setChecked] = useState<Set<number>>(new Set());
   const [selected, setSelected] = useState<number | null>(null);
   const [notice, setNotice] = useState('');
+  useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(''), 5000); return () => clearTimeout(timer); }, [notice]);
   const [newTask, setNewTask] = useState('');
   const [invalidField, setInvalidField] = useState<number | null>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -47,13 +50,14 @@ export function Preview({ plan, content, busy, onChange }: Props) {
     observer.observe(stage);
     return () => observer.disconnect();
   }, []);
-  const items = (content?.items ?? []).filter(item => item && typeof item.name === 'string');
-  const pageSize = plan.view === 'pricing' || stageHeight < 440 ? 1 : plan.view === 'form' || stageHeight < 600 ? 2 : 3;
+  const items = (Array.isArray(content?.items) ? content.items : []).filter(item => item && typeof item.name === 'string').map(item => ({ name: item.name, detail: typeof item.detail === 'string' ? item.detail : '', value: typeof item.value === 'string' ? item.value : '' }));
+  const photo = plan.visual === 'kyoto' || plan.visual === 'coffee' ? media[plan.visual] : null;
+  const pageSize = plan.view === 'pricing' || stageHeight < 440 ? 1 : plan.view === 'form' || stageHeight < 600 || photo ? 2 : 3;
   const pages = Math.max(1, Math.ceil(items.length / pageSize));
   const currentPage = Math.min(page, pages - 1);
   const visible = items.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
-  const number = (value: string) => { const parsed = Number(value.replace(/[^\d.-]/g, '')); return Number.isFinite(parsed) ? Math.abs(parsed) : 0; };
-  const maxValue = Math.max(1, ...items.map(item => number(item.value || '')));
+  const ViewIcon = { dashboard: BarChart3, checklist: ListChecks, form: MessageSquare, pricing: Layers3, comparison: Layers3, itinerary: CalendarDays }[plan.view];
+
 
   function addTask(event: React.FormEvent) {
     event.preventDefault();
@@ -63,23 +67,23 @@ export function Preview({ plan, content, busy, onChange }: Props) {
     setPage(Math.floor(items.length / pageSize)); setNewTask(''); setNotice('Task added to this preview.');
   }
 
-  return <div ref={root} className={`generated-view view-${plan.view} ${stageHeight < 440 ? 'is-compact' : ''}`} data-accent={plan.accent} aria-label={`${plan.view} preview`} aria-busy={busy}>
+  return <div ref={root} className={`generated-view view-${plan.view} ${stageHeight < 440 ? 'is-compact' : ''}`} data-accent={plan.accent} data-synthesizing={busy || undefined} aria-label={`${plan.view} preview`} aria-busy={busy}>
+    {photo && <figure className="preview-photo"><img src={photo.src} alt={photo.alt} width="960" height="440" fetchPriority="high" /></figure>}
     <div className="view-heading">
-      <h2>{content?.title || <Skeleton className="h-8 w-2/3" />}</h2>
-      {content?.description ? <p>{content.description}</p> : <Skeleton className="mt-3 h-4 w-4/5" />}
+      <div className="view-title"><span className="view-symbol" aria-hidden="true"><ViewIcon size={22} /></span><h2>{content?.title || <Skeleton className="h-8 w-2/3" />}</h2></div>
+      {content?.description ? <p>{content.description}</p> : busy ? <Skeleton className="mt-3 h-4 w-4/5" /> : null}
     </div>
 
     {items.length === 0 ? <div aria-label="Filling interface content"><PendingView view={plan.view} /></div> : <>
       {plan.view === 'dashboard' && <>
-        <div className="metric-grid">{content?.metrics?.filter(Boolean).slice(0, 3).map((metric, i) => <Card key={i}><CardContent><span>{metric.label}</span><strong>{metric.value}</strong></CardContent></Card>)}</div>
-        <Card className="chart-card"><CardContent><div className="chart-heading"><h3>{content?.labels?.[0] || 'Overview'}</h3></div>
-          <div className="chart" role="img" aria-label={items.map(item => `${item.name}: ${item.value}`).join(', ')}>{items.map((item, i) => <div className="chart-column" key={i}><span className="chart-value">{item.value}</span><div className="chart-track"><div className="chart-bar" style={{ height: `${Math.max(3, number(item.value || '') / maxValue * 100)}%` }} /></div><span className="chart-label">{item.name}</span></div>)}</div>
+        <div className="metric-grid" data-count={busy ? 3 : Math.min(3, content?.metrics?.length || 0)}>{Array.from({ length: busy ? 3 : Math.min(3, content?.metrics?.length || 0) }, (_, i) => { const metric = content?.metrics?.[i]; const Icon = [Wallet, BarChart3, CreditCard][i]; return <Card key={i}><CardContent><Icon size={17} aria-hidden="true" />{metric ? <><span>{metric.label}</span><strong>{metric.value}</strong></> : <><Skeleton className="h-3 w-16" /><Skeleton className="mt-4 h-7 w-20" /></>}</CardContent></Card>; })}</div>
+        <Card className="chart-card"><CardContent><div className="chart-heading"><h3>{content?.labels?.[0] || 'Overview'}</h3><span className="chart-legend"><i />{content?.labels?.[1] || 'Value'}</span></div>
+          <DataChart items={items} bars={plan.visual === 'bars'} />
         </CardContent></Card>
       </>}
 
       {plan.view === 'checklist' && <>
-        <div className="list-summary"><span>{checked.size} of {items.length} complete</span><span>{Math.round(checked.size / Math.max(1, items.length) * 100)}%</span></div>
-        <div className="progress-track" role="progressbar" aria-label="Tasks complete" aria-valuenow={checked.size} aria-valuemin={0} aria-valuemax={items.length}><div style={{ width: `${checked.size / Math.max(1, items.length) * 100}%` }} /></div>
+        <div className="task-overview"><div><strong>{checked.size}<span> / {items.length}</span></strong><span>Tasks complete</span></div><CompletionRing done={checked.size} total={items.length} /></div>
         <div className="task-list">{visible.map((item, i) => { const index = currentPage * pageSize + i; return <label className={`task-row ${checked.has(index) ? 'is-checked' : ''}`} key={index}>
           <Checkbox checked={checked.has(index)} disabled={busy} onCheckedChange={value => setChecked(previous => { const next = new Set(previous); if (value) next.add(index); else next.delete(index); return next; })} aria-label={`Complete ${item.name}`} />
           <span className="task-copy"><strong>{item.name}</strong><span>{item.detail}</span></span>{item.value && <Badge variant="secondary">{item.value}</Badge>}
@@ -103,15 +107,15 @@ export function Preview({ plan, content, busy, onChange }: Props) {
         
       </form>}
 
-      {plan.view === 'pricing' && <div className="pricing-grid">{visible.map((item, i) => { const index = currentPage * pageSize + i; return <Card key={index} className="price-card"><CardContent>
+      {plan.view === 'pricing' && <div className="pricing-grid">{visible.map((item, i) => { const index = currentPage * pageSize + i; return <Card key={index} className="price-card"><CardContent><div className="tier-graphic" aria-hidden="true">{[0, 1, 2].map(level => <span key={level} className={level <= index ? 'is-active' : ''} />)}</div>
         <div className="price-top"><h3>{item.name}</h3><Badge variant="secondary">{index + 1} of {items.length}</Badge></div><div className="price">{item.value}</div>
         <details className={`price-features ${stageHeight >= 440 ? 'is-expanded' : ''}`} open={stageHeight >= 440}><summary>View features</summary><ul>{(item.detail || '').split(';').filter(Boolean).map((feature, j) => <li key={j}><Check size={15} />{feature.trim()}</li>)}</ul></details>
         <Button variant="outline" disabled={busy} className={selected === index ? 'is-selected' : ''} onClick={() => { setSelected(index); setNotice(`${item.name} selected in this preview. No purchase was made.`); }}>{selected === index ? <><Check size={16} /> Selected</> : <>Select {item.name}<ArrowRight size={16} /></>}</Button>
       </CardContent></Card>; })}</div>}
 
-      {plan.view === 'comparison' && <div className="comparison-wrap"><Table><TableHeader><TableRow>{(content?.labels || ['Option', 'Details', 'Value']).slice(0, 3).map((label, i) => <TableHead key={i}>{label}</TableHead>)}</TableRow></TableHeader><TableBody>{visible.map((item, i) => <TableRow key={i}><TableCell className="font-medium">{item.name}</TableCell><TableCell>{item.detail}</TableCell><TableCell>{item.value}</TableCell></TableRow>)}</TableBody></Table></div>}
+      {plan.view === 'comparison' && <div className="comparison-wrap"><Table><TableHeader><TableRow>{(content?.labels || ['Option', 'Details', 'Value']).slice(0, 3).map((label, i) => <TableHead key={i}>{label}</TableHead>)}</TableRow></TableHeader><TableBody>{visible.map((item, i) => <TableRow key={currentPage * pageSize + i}><TableCell className="font-medium"><span className="comparison-name"><span className="option-symbol" aria-hidden="true"><Layers3 size={16} /></span>{item.name}</span></TableCell><TableCell>{item.detail}</TableCell><TableCell><span className="comparison-value">{item.value}</span></TableCell></TableRow>)}</TableBody></Table></div>}
 
-      {plan.view === 'itinerary' && <div className="itinerary-list">{visible.map((item, i) => <div className="itinerary-row" key={i}><span className="time">{item.value}</span><span className="timeline-dot" aria-hidden="true" /><div><h3>{item.name}</h3><p>{item.detail}</p></div></div>)}</div>}
+      {plan.view === 'itinerary' && <div className="itinerary-list">{visible.map((item, i) => <div className="itinerary-row" key={i}><span className="time">{item.value}</span><span className="timeline-dot" aria-hidden="true"><Clock3 size={15} /></span><div><h3>{item.name}</h3><p>{item.detail}</p></div></div>)}</div>}
 
       {plan.view !== 'dashboard' && <Pager page={currentPage} pages={pages} setPage={setPage} />}
     </>}

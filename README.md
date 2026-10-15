@@ -2,9 +2,9 @@
 
 A minimal chat that turns requests into interactive shadcn interfaces. [Open Pico](https://keff.uk/pico).
 
-The interface uses Geist, dark shadcn components and a single centered composer. Technical metadata and JSON export live in the details dialog.
+The interface uses Geist, dark shadcn components and a single centered composer. Generated views add data-driven SVG charts, task completion rings, colored plan cards and a timeline. Mercury selects one of four accent themes and an optional locally served Kyoto or coffee photograph when the subject matches. Components appear from streamed JSON; there is no simulated production content or animation progress. Motion respects reduced-motion preferences. Technical metadata and JSON export live in the details dialog.
 
-`inception/mercury-decide:free` chooses one of six prebuilt layouts through OpenRouter’s typed Decisions API. The layout renders as soon as that decision arrives. `openrouter/free` fills its content over a stream. The interface displays measured layout and completion times. Every upstream model is free; the server accepts no model overrides.
+`inception/mercury-decide:free` chooses one of six prebuilt layouts through OpenRouter’s typed Decisions API. The layout renders as soon as that decision arrives. `google/gemma-4-26b-a4b-it:free` fills its content over a stream with reasoning disabled and a 6,144-token budget. An incomplete or unavailable response gets one automatic retry through `openrouter/free`, with an 8,192-token budget and compact output instructions. Both attempts share the 55-second request deadline, with a 25-second timeout per provider attempt. A valid completed JSON object is accepted even if the provider labels its finish as `length`. The interface displays measured layout and completion times. Every upstream model is free; the server accepts no model overrides.
 
 The catalog includes a dashboard, checklist, form, pricing view, comparison table and itinerary. Checkboxes, task additions, form entries and plan selection work locally. Follow-up prompts refine the current preview. JSON export downloads the content and selected layout; it is not an application source export.
 
@@ -12,7 +12,7 @@ The catalog includes a dashboard, checklist, form, pricing view, comparison tabl
 
 Use Node.js 24. Run `npm ci`, add `OPENROUTER_API_KEY` to the ignored `.dev.vars` file, then run `npm run dev`. Open `http://127.0.0.1:5174/pico/`.
 
-Run `npm run check`, `npm test` and `npm run test:ui` with the dev server running. The interface checks use explicit mocked provider events; they do not establish live model performance. Run `npx cf deploy --dry-run` to validate the production bundle.
+Run `npm run check`, `npm test`, `npm run test:ui` and `npm run test:streaming` with the dev server running. The interface and streaming checks use explicit mocked provider events; they do not establish live model performance. Run `npx cf deploy --dry-run` to validate the production bundle.
 
 ## Agents and link previews
 
@@ -46,3 +46,5 @@ The public endpoint limits requests to six per IP and eighteen aggregate request
 The app uses a single viewport with a bottom composer on mobile. Preview pages keep normal content compact. Exceptionally long content, enlarged text and the JSON view can scroll within their panel so content remains reachable.
 
 API references: [Decisions](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request), [free router](https://openrouter.ai/docs/guides/routing/routers/free-router), [Cloudflare CLI](https://developers.cloudflare.com/cf/projects/cloudflare-config/).
+
+The truncation handling follows OpenRouter’s [shared reasoning/output token budget](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens). Output schema validation, rather than the provider finish label alone, determines whether an interface is complete. Photo source and license links are recorded in `public/images/README.md`.

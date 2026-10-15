@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Preview, samplePrompts } from './Preview';
 import { contentSchema, viewNames, type Content, type Plan, type Result } from './schema';
+import { GENERATOR } from './models';
+import { media } from './media';
 
 type Phase = 'idle' | 'deciding' | 'filling';
 type Entry = { role: 'user' | 'assistant'; content: string };
@@ -72,6 +74,7 @@ export default function App() {
               generated += event.text;
               try { const partial = parse(generated); if (partial && typeof partial === 'object' && !Array.isArray(partial)) setContent(partial); } catch { /* Incomplete JSON is expected while streaming. */ }
             }
+            if (event.type === 'reset') { generated = ''; setContent(undefined); }
             if (event.type === 'complete' && nextPlan) {
               const valid = contentSchema.parse(event.content);
               const next = { plan: nextPlan, content: valid, generationModel: event.generationModel, totalMs: event.totalMs };
@@ -106,6 +109,7 @@ export default function App() {
 
   function openHelp() { help.current?.showModal(); }
   const status = phase === 'deciding' ? 'Choosing a layout…' : phase === 'filling' ? 'Filling your interface…' : result ? 'Ready to try' : 'Ready for an idea';
+  const photo = plan?.visual === 'kyoto' || plan?.visual === 'coffee' ? media[plan.visual] : null;
 
   return <div className={`app-shell ${plan || busy || error ? 'has-preview' : 'is-empty'}`}>
     <a className="skip-link" href="#prompt">Skip to prompt</a>
@@ -121,7 +125,7 @@ export default function App() {
       {(plan || busy || error) && <section className="preview-panel" aria-label="Generated interface">
         <h1 className="sr-only">Your interface</h1>
         {lastPrompt && <button className="request-bubble" onClick={() => historyDialog.current?.showModal()} aria-label="View chat"><span>{lastPrompt}</span></button>}
-        <div className="preview-stage"><div className="stage-inner">
+        <div className="preview-stage" role="region" aria-label="Interface preview" tabIndex={0}><div className="stage-inner">
           {plan ? <Preview key={previewKey} plan={plan} content={content} busy={busy} onChange={next => { setContent(next); setResult(old => old ? { ...old, content: next } : old); }} /> : busy ? <div className="choosing-state" role="status"><LoaderCircle className="spinner" size={20} /><span>Choosing a layout…</span></div> : null}
         </div></div>
       </section>}
@@ -139,9 +143,10 @@ export default function App() {
     <div role="status" className="sr-only">{status}{notice ? `. ${notice}` : ''}</div>
     <dialog ref={help} className="info-dialog" onClick={event => { if (event.target === event.currentTarget) help.current?.close(); }}>
       <div className="dialog-heading"><h2>About this interface</h2><Button variant="ghost" size="icon" onClick={() => help.current?.close()} aria-label="Close about Pico"><X size={20} /></Button></div>
-      <dl><dt>Layout model</dt><dd>inception/mercury-decide:free</dd><dt>Content model</dt><dd>{result?.generationModel || 'openrouter/free'}</dd>{result && <><dt>Response time</dt><dd>Layout: {timing(result.plan.decisionMs)} · Content: {timing(result.totalMs)}</dd></>}</dl>
+      <dl><dt>Layout model</dt><dd>inception/mercury-decide:free</dd><dt>Content model</dt><dd>{result?.generationModel || GENERATOR}</dd>{result && <><dt>Response time</dt><dd>Layout: {timing(result.plan.decisionMs)} · Content: {timing(result.totalMs)}</dd></>}</dl>
       <p>Built from six prebuilt shadcn layouts. Content streams in after the layout is chosen. Only free OpenRouter models are used; availability depends on provider limits.</p>
       <p>This is an interactive prototype with illustrative content. Form entries, selections and edits stay in this tab. Prompts and the current preview are sent to OpenRouter. Pico does not store conversations.</p>
+      {photo && <p>Illustrative photo by <a href={photo.source} target="_blank" rel="noreferrer">{photo.author} on Unsplash</a>.</p>}
       <div className="detail-actions">{result && <Button variant="outline" onClick={download}><Download size={16} />Download data</Button>}<a href="https://github.com/kennethassogba/pico" target="_blank" rel="noreferrer">GitHub<ArrowUpRight size={14} /></a><a href="https://keff.uk/">k<sub>eff</sub><ArrowUpRight size={14} /></a></div>
       {result && <details className="data-details"><summary>Interface data</summary><pre tabIndex={0} aria-label="Interface JSON">{JSON.stringify({ view: result.plan.view, ...result.content }, null, 2)}</pre></details>}
     </dialog>

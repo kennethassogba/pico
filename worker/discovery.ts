@@ -32,12 +32,12 @@ POST ${home}/api/generate with Content-Type: application/json and a JSON body:
 \`\`\`json
 {"prompt":"Make a launch checklist","history":[]}
 \`\`\`
-The response is newline-delimited JSON. A plan event selects a layout; delta events stream JSON text; complete returns validated content, the actual generation model and totalMs. Error events contain a recoverable message. Do not treat partial content as complete.
+The response is newline-delimited JSON. A plan event selects a layout; delta events stream JSON text; reset clears accumulated JSON when an incomplete attempt is automatically replaced; complete returns validated content, the actual generation model and totalMs. Error events contain a recoverable message. Do not treat partial content as complete.
 
 MCP tools: list_components and generate_interface. The generation tool returns the completed interface data. To refine, supply previous: {view, content}. Prompts are 3–1,200 characters; history has at most six user/assistant entries. No model override is accepted.
 
 ## Limits and data
-Only inception/mercury-decide:free and openrouter/free are requested. Prompts, supplied history and previous content go to OpenRouter. Pico does not persist conversations. Generated content is illustrative prototype data, not verified live information. Form actions are local demonstrations. No generated code is executed.
+Only inception/mercury-decide:free, google/gemma-4-26b-a4b-it:free and openrouter/free are requested. Gemma generates with reasoning disabled and a 6,144-token output budget; one bounded automatic retry uses the free router if an attempt is incomplete or unavailable. Prompts, supplied history and previous content go to OpenRouter. Pico does not persist conversations. Generated content is illustrative prototype data, not verified live information. Form actions are local demonstrations. No generated code is executed.
 
 Generation has a 55-second server timeout and is limited to six requests per IP and eighteen total per minute per Cloudflare location. MCP and browser generation share these limits. Retry after a minute if throttled. Do not include secrets or personal data in example prompts.
 `;

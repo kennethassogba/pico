@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { decide, generation, handle, readBounded } from '../worker/index';
 import { contentSchema, requestSchema, type Plan } from '../src/schema';
+import { GENERATOR, FALLBACK_GENERATOR } from '../src/models';
 
 const content = {
   title: 'Website launch', description: 'Tasks for this weekend.', labels: ['Task', 'Category'],
@@ -69,15 +70,55 @@ describe('free provider contract', () => {
     for await (const event of generation(input, plan, 'test-key', new AbortController().signal, fetcher as typeof fetch)) events.push(event);
     expect(events.at(-1)).toEqual({ type: 'content', content, model: 'provider/model:free' });
     const [, options] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
-    expect(JSON.parse(options.body as string).model).toBe('openrouter/free');
+    const body = JSON.parse(options.body as string);
+    expect(body.model).toBe(GENERATOR);
+    expect(body.reasoning).toEqual({ enabled: false });
+    expect(body.max_tokens).toBeGreaterThanOrEqual(6000);
   });
-  it('never treats a truncated result as a completed interface', async () => {
+  it('never treats two incomplete attempts as a completed interface', async () => {
     const fetcher = vi.fn(async () => new Response(`data: ${JSON.stringify({ choices: [{ delta: { content: '{"title":"Hello"' }, finish_reason: 'length' }] })}\n\n`));
-    await expect(async () => { for await (const event of generation(input, plan, 'test-key', new AbortController().signal, fetcher as typeof fetch)) void event; }).rejects.toThrow('ran out of room');
+    const events: unknown[] = [];
+    await expect(async () => { for await (const event of generation(input, plan, 'test-key', new AbortController().signal, fetcher as typeof fetch)) events.push(event); }).rejects.toThrow('could not finish');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(events.some(event => (event as { type: string }).type === 'content')).toBe(false);
+  });
+  it('automatically recovers from truncated JSON with a clean replacement stream', async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(new Response(`data: ${JSON.stringify({ choices: [{ delta: { content: '{"title":"Unfinished' }, finish_reason: 'length' }] })}\n\n`))
+      .mockResolvedValueOnce(new Response(`data: ${JSON.stringify({ model: 'provider/recovery:free', choices: [{ delta: { content: JSON.stringify(content) }, finish_reason: 'stop' }] })}`));
+    const events = [];
+    for await (const event of generation(input, plan, 'test-key', new AbortController().signal, fetcher as typeof fetch)) events.push(event);
+    expect(events.map(event => event.type)).toEqual(['delta', 'reset', 'delta', 'content']);
+    expect(events.at(-1)).toEqual({ type: 'content', content, model: 'provider/recovery:free' });
+    const retry = JSON.parse(fetcher.mock.calls[1][1].body);
+    expect(retry.model).toBe(FALLBACK_GENERATOR);
+    expect(retry.max_tokens).toBe(8192);
+    expect(retry.reasoning.max_tokens).toBe(256);
+  });
+  it('accepts complete schema-valid JSON even if the provider labels the finish as length', async () => {
+    const fetcher = vi.fn(async () => new Response(`data: ${JSON.stringify({ choices: [{ delta: { content: JSON.stringify(content) }, finish_reason: 'length' }] })}\n\n`));
+    const events = [];
+    for await (const event of generation(input, plan, 'test-key', new AbortController().signal, fetcher as typeof fetch)) events.push(event);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(events.at(-1)?.type).toBe('content');
+  });
+  it('recovers when reasoning exhausts an attempt before visible content arrives', async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(new Response(`data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'length' }] })}\n\n`))
+      .mockResolvedValueOnce(new Response(`data: ${JSON.stringify({ choices: [{ delta: { content: JSON.stringify(content) }, finish_reason: 'stop' }] })}\n\n`));
+    const events = [];
+    for await (const event of generation(input, plan, 'test-key', new AbortController().signal, fetcher as typeof fetch)) events.push(event);
+    expect(events.map(event => event.type)).toEqual(['reset', 'delta', 'content']);
   });
   it('turns provider throttling into a recoverable message', async () => {
     const fetcher = vi.fn(async () => new Response('', { status: 429 }));
     await expect(decide(input, 'test-key', new AbortController().signal, fetcher as typeof fetch)).rejects.toThrow('Wait a minute');
+  });
+  it('does not start a fallback after the user stops the request', async () => {
+    const abort = new AbortController();
+    const fetcher = vi.fn(async () => { abort.abort(); throw new DOMException('Stopped', 'AbortError'); });
+    await expect(async () => { for await (const event of generation(input, plan, 'test-key', abort.signal, fetcher as typeof fetch)) void event; }).rejects.toThrow('Stopped');
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
   it('validates bounded output rather than executing generated code', () => {
     expect(contentSchema.safeParse({ ...content, items: [{ name: 'a'.repeat(101), detail: '', value: '' }] }).success).toBe(false);

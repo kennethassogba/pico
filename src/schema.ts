@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const viewTypes = ['dashboard', 'checklist', 'form', 'pricing', 'comparison', 'itinerary'] as const;
 export const accents = ['violet', 'blue', 'rose', 'orange'] as const;
+export const visuals = ['area', 'bars', 'kyoto', 'coffee', 'none'] as const;
 export const viewSchema = z.enum(viewTypes);
 export type ViewType = z.infer<typeof viewSchema>;
 export const contentSchema = z.object({
@@ -16,7 +17,7 @@ export const contentSchema = z.object({
   metrics: z.array(z.object({ label: z.string().max(48), value: z.string().max(48) })).min(2).max(4),
 });
 export type Content = z.infer<typeof contentSchema>;
-export type Plan = { view: ViewType; accent: typeof accents[number]; confidence: number; decisionMs: number; model: string };
+export type Plan = { view: ViewType; accent: typeof accents[number]; visual?: typeof visuals[number]; confidence: number; decisionMs: number; model: string };
 export type Result = { plan: Plan; content: Content; generationModel: string; totalMs: number };
 export const requestSchema = z.object({
   prompt: z.string().trim().min(3).max(1200),

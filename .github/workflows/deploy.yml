@@ -30,6 +30,7 @@ jobs:
           trap 'kill "$server_pid"' EXIT
           curl --retry 20 --retry-connrefused --retry-delay 1 --fail --silent http://127.0.0.1:5174/pico/ > /dev/null
           npm run test:ui
+          npm run test:streaming
           node scripts/check-agents.mjs
       - name: Validate the production bundle
         run: npx cf deploy --dry-run

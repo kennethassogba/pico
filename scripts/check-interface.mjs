@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { chromium } from 'playwright';
 import AxeBuilder from '@axe-core/playwright';
+import { auditColors } from './color-audit.mjs';
 
 const base = process.env.PICO_TEST_URL || 'http://127.0.0.1:5174/pico/';
 await fs.mkdir('output/playwright', { recursive: true });
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
 const report = [];
+const colorReport = [];
 const fixture = {
   title: 'A small project', description: 'Illustrative content for an interface check.', labels: ['Name', 'Details', 'Value'],
   items: [
@@ -17,13 +19,15 @@ const fixture = {
   ], metrics: [{ label: 'This week', value: '€120' }, { label: 'Budget', value: '€200' }, { label: 'Remaining', value: '€80' }],
 };
 const errors = [];
+const findings = [];
+const check = (condition, message) => { if (!condition) findings.push(message); };
 function payload(view) {
   const content = structuredClone(fixture);
   if (view === 'form') { content.labels[0] = 'Send feedback'; content.items = [{ name: 'Name', detail: 'Alex', value: 'text' }, { name: 'Email', detail: 'alex@example.com', value: 'email' }, { name: 'Comment', detail: 'What worked well?', value: 'textarea' }]; }
   if (view === 'pricing') { content.items = [{ name: 'Personal', detail: 'One workspace;Unlimited notes;JSON export', value: '€9 / month' }, { name: 'Team', detail: 'Shared workspaces;Team notes;Priority support', value: '€19 / month' }]; }
   if (view === 'itinerary') content.items = content.items.map((item, i) => ({ ...item, value: `${9 + i}:00` }));
   return [
-    { type: 'plan', plan: { view, accent: 'violet', confidence: 0.95, decisionMs: 325, model: 'inception/mercury-decide:free' } },
+    { type: 'plan', plan: { view, accent: { dashboard: 'blue', checklist: 'rose', form: 'orange', pricing: 'violet', comparison: 'blue', itinerary: 'orange' }[view], visual: { dashboard: 'area', form: 'coffee', itinerary: 'kyoto' }[view] || 'none', confidence: 0.95, decisionMs: 325, model: 'inception/mercury-decide:free' } },
     { type: 'delta', text: JSON.stringify(content) },
     { type: 'complete', content, generationModel: 'test-fixture:free', totalMs: 1800 },
   ].map(event => JSON.stringify(event)).join('\n') + '\n';
@@ -46,17 +50,17 @@ try {
       await page.getByLabel(`${view} preview`, { exact: true }).waitFor();
       await page.getByText('Ready to try', { exact: true }).first().waitFor();
       const audit = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
-      assert.equal(audit.violations.length, 0, `${view} ${size.width}: ${JSON.stringify(audit.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => n.target) })))}`);
+      check(audit.violations.length === 0, `${view} ${size.width}: ${JSON.stringify(audit.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => n.target) })))}`);
       const dimensions = await page.evaluate(() => ({
         pageWidth: document.documentElement.scrollWidth, width: innerWidth,
         pageHeight: document.documentElement.scrollHeight, height: innerHeight,
         stageWidth: document.querySelector('.preview-stage').clientWidth, stageScrollWidth: document.querySelector('.preview-stage').scrollWidth,
         stageHeight: document.querySelector('.preview-stage').clientHeight, stageScrollHeight: document.querySelector('.preview-stage').scrollHeight,
       }));
-      assert.ok(dimensions.pageWidth <= dimensions.width, `Horizontal page overflow: ${view} ${size.width}`);
-      assert.ok(dimensions.pageHeight <= dimensions.height, `Page must stay within one viewport: ${view} ${size.width}`);
-      assert.ok(dimensions.stageScrollWidth <= dimensions.stageWidth + 1, `Horizontal preview overflow: ${view} ${size.width}`);
-      assert.ok(dimensions.stageScrollHeight <= dimensions.stageHeight + 1, `Default preview should fit without scrolling: ${view} ${size.width}`);
+      check(dimensions.pageWidth <= dimensions.width, `Horizontal page overflow: ${view} ${size.width}`);
+      check(dimensions.pageHeight <= dimensions.height, `Page must stay within one viewport: ${view} ${size.width}`);
+      check(dimensions.stageScrollWidth <= dimensions.stageWidth + 1, `Horizontal preview overflow: ${view} ${size.width}`);
+      check(dimensions.stageScrollHeight <= dimensions.stageHeight + 1, `Default preview should fit without scrolling: ${view} ${size.width}`);
       const sendBox = await page.getByRole('button', { name: 'Generate interface', exact: true }).boundingBox();
       assert.ok(sendBox.y >= 0 && sendBox.y + sendBox.height <= size.height, 'Composer must remain reachable.');
       if (view === 'checklist') {
@@ -75,6 +79,9 @@ try {
         await page.getByRole('button', { name: 'Selected', exact: true }).waitFor();
       }
       await page.screenshot({ path: `output/playwright/${view}-${size.width}.png` });
+      const pairs = await auditColors(page);
+      colorReport.push(...pairs.map(pair => ({ view, width: size.width, ...pair })));
+      findings.push(...pairs.filter(pair => !pair.pass).map(pair => `${view} ${size.width} ${pair.accent} ${pair.selector}: ${pair.ratio.toFixed(2)} < ${pair.threshold}`));
       report.push({ view, width: size.width, axe: 'pass', ...dimensions });
       await page.unroute('**/pico/api/generate');
     }
@@ -90,7 +97,10 @@ try {
     assert.equal(await page.getByRole('button', { name: 'About Pico', exact: true }).evaluate(el => el === document.activeElement), true);
     await context.close();
   }
-  assert.deepEqual(errors, [], 'No client runtime errors');
-  await fs.writeFile('output/playwright/report.json', JSON.stringify({ source: 'Deterministic provider fixtures, not a live model benchmark', cases: report }, null, 2));
+  findings.push(...errors);
+  console.log(JSON.stringify(findings));
+  await fs.writeFile('output/playwright/report.json', JSON.stringify({ source: 'Deterministic provider fixtures, not a live model benchmark', cases: report, findings }, null, 2));
+  await fs.writeFile('output/playwright/colors.json', JSON.stringify(colorReport, null, 2));
+  assert.deepEqual(findings, [], 'Interface findings');
   console.log(`Verified ${report.length} view/viewport combinations, accessibility, local interactions, recoverable errors, and dialog focus restoration.`);
 } finally { await browser.close(); }
