@@ -8,7 +8,7 @@ export async function mcp(request: Request, ctx: ExecutionContext, generate: (re
   const handler = createMcpHandler(() => {
     const server = new McpServer({ name: 'pico', version: '1.1.0' });
     server.registerTool('list_components', {
-      description: 'List the eight available prebuilt shadcn interface layouts.', inputSchema: z.object({}).strict(),
+      description: 'List the twelve available prebuilt shadcn interface layouts.', inputSchema: z.object({}).strict(),
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     }, async () => ({ content: [{ type: 'text' as const, text: JSON.stringify(componentCatalog) }], structuredContent: { components: componentCatalog } }));
     server.registerTool('generate_interface', {

@@ -182,7 +182,7 @@ h1, h2, h3, p { margin: 0; }
   .composer > button { width: 40px; height: 40px; margin-block-end: 4px; }
   .examples { gap: 8px; margin-block-end: 12px; }
   .examples button { font-size: 0.8125rem; padding: 10px 14px; }
-  .examples button:last-child { display: none; }
+  .examples > button:not(.examples-more):nth-child(3) { display: none; }
   .request-bubble { font-size: 0.875rem; padding: 10px 14px; margin-block: 4px 8px; }
   .stage-inner { padding: 16px 2px 20px; }
   .view-heading { margin-block-end: 22px; }
@@ -523,3 +523,141 @@ h1, h2, h3, p { margin: 0; }
   .gallery-grid[data-count="4"] .type-cover strong, .gallery-grid[data-count="5"] .type-cover strong, .gallery-grid[data-count="6"] .type-cover strong { font-size: 1.5rem; }
   .gallery-grid[data-count="4"] .gallery-entry > img, .gallery-grid[data-count="5"] .gallery-entry > img, .gallery-grid[data-count="6"] .gallery-entry > img { height: 116px; }
 }
+
+/* Each preview is one scrollable composition. Controls remain outside its scroll. */
+.view-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
+.view-title { flex: 1; }
+.layout-options, .chart-modes { display: inline-flex; gap: 2px; flex-shrink: 0; }
+.layout-options button, .chart-tools button { display: grid; place-items: center; width: 36px; height: 36px; padding: 8px; border: 0; border-radius: 7px; background: transparent; color: var(--text-muted); }
+.layout-options button[aria-pressed=true], .chart-modes button[aria-pressed=true] { background: var(--surface-raised); color: var(--foreground); }
+.chart-tools { display: flex; align-items: center; gap: 12px; min-height: 44px; margin-block-end: 12px; }
+.chart-readout { display: flex; align-items: baseline; gap: 10px; font-size: .8125rem; color: var(--text-muted); min-width: 0; }
+.chart-readout strong { color: var(--foreground); font-variant-numeric: tabular-nums; }
+.chart-tools .chart-reset { margin-inline-start: auto; }
+.chart-reset:disabled { opacity: .4; }
+.chart-handle { fill: transparent; stroke: none; cursor: ns-resize; touch-action: none; }
+.chart-handle:focus-visible { stroke: var(--foreground); stroke-width: 1; vector-effect: non-scaling-stroke; outline: none; }
+.chart-axis { display: grid; grid-template-columns: repeat(auto-fit, minmax(52px, 1fr)); gap: 12px 8px; }
+.chart-axis label { display: grid; gap: 4px; min-width: 0; text-align: center; font-size: .75rem; color: var(--text-muted); }
+.chart-axis input { width: 100%; min-width: 0; padding: 7px 2px; min-height: 36px; border: 0; border-bottom: 1px solid var(--border); background: transparent; color: var(--foreground); font-size: .875rem; text-align: center; font-variant-numeric: tabular-nums; appearance: textfield; }
+.chart-axis input::-webkit-inner-spin-button { appearance: none; }
+.chart-axis label > span { overflow-wrap: anywhere; }
+.metric-grid[data-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; max-width: none; }
+.price-card [data-slot=card-content] { padding: 20px; height: 100%; display: flex; flex-direction: column; }
+.price-card .price-features { flex: 1; }
+.price-card .price { font-size: 2rem; }
+[data-layout=compact] .task-row { padding-block: 10px; }
+[data-layout=compact] .itinerary-list { gap: 14px; }
+[data-layout=compact] .board-card [data-slot=card-content] { padding: 12px; }
+[data-layout=compact] .tier-graphic { display: none; }
+[data-layout=compact] .gallery-grid[data-count] { grid-template-columns: 1fr; gap: 14px; }
+[data-layout=compact] .gallery-grid[data-count] .gallery-entry { display: grid; grid-template-columns: 88px minmax(0, 1fr); align-items: center; gap: 16px; }
+[data-layout=compact] .gallery-grid[data-count] .type-cover { min-height: 88px; padding: 10px; }
+[data-layout=compact] .gallery-grid[data-count] .type-cover strong { font-size: 1rem; }
+[data-layout=compact] .gallery-grid[data-count] .type-cover > svg { display: none; }
+[data-layout=compact] .gallery-grid[data-count] .gallery-entry > img { height: 88px; }
+[data-layout=compact] .generated-form { gap: 12px; }
+[data-layout=split] .task-list, [data-layout=split] .generated-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; max-width: none; }
+[data-layout=split] .task-row { flex-wrap: wrap; padding-block: 14px; }
+[data-layout=split] .generated-form > button { grid-column: 1 / -1; }
+[data-layout=split] .itinerary-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+[data-layout=split] .itinerary-row { grid-template-columns: 64px 7px minmax(0, 1fr); gap: 12px; }
+[data-layout=split] .comparison-wrap thead { display: none; }
+[data-layout=split] .comparison-wrap table, [data-layout=split] .comparison-wrap tbody { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+[data-layout=split] .comparison-wrap table { display: block; }
+[data-layout=split] .comparison-wrap tr { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px; padding: 16px; gap: 12px; }
+[data-layout=split] .comparison-wrap td { display: block; padding: 0; }
+[data-layout=split] .comparison-wrap td:nth-child(2) { color: var(--text-muted); }
+[data-layout=split] .chart-axis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.calendar-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-block-end: 20px; }
+.calendar-heading h3 { font-size: 1rem; font-weight: 500; }
+.calendar-heading > div { display: flex; }
+.calendar-view { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 28px; }
+.calendar-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.calendar-days > .weekday { text-align: center; font-size: .6875rem; color: var(--text-muted); padding-block: 8px; }
+.calendar-days button { position: relative; aspect-ratio: 1; min-height: 36px; border: 0; border-radius: 8px; padding: 4px; background: transparent; color: var(--foreground); font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.calendar-days button[aria-pressed=true] { background: var(--accent-solid); color: var(--accent-contrast); }
+.calendar-days button.is-today { box-shadow: inset 0 0 0 1px var(--accent-border); }
+.calendar-days button > i { display: block; position: absolute; bottom: 5px; left: calc(50% - 2px); width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.calendar-events > div { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 12px; padding-block: 14px; border-bottom: 1px solid var(--border); }
+.calendar-events time { color: var(--accent-text); font-size: .75rem; }
+.calendar-events strong { font-size: .875rem; font-weight: 500; }
+.calendar-events p, .view-empty { color: var(--text-muted); font-size: .8125rem; line-height: 1.5; }
+.calendar-events p { margin-top: 4px; }
+.calculator-view { display: grid; grid-template-columns: minmax(0, 1fr) minmax(160px, .65fr); gap: 32px; align-items: start; }
+.calculator-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 16px; border-bottom: 1px solid var(--border); }
+.calculator-row > span { display: grid; gap: 4px; min-width: 0; }
+.calculator-row strong { font-size: .9375rem; font-weight: 500; }
+.calculator-row > span > span { color: var(--text-muted); font-size: .8125rem; }
+.calculator-row input { width: 104px; flex-shrink: 0; text-align: end; font-variant-numeric: tabular-nums; }
+.calculator-total { position: sticky; top: 12px; padding: 24px; background: var(--accent-soft); border-radius: 12px; display: grid; gap: 12px; }
+.calculator-total > span { font-size: .875rem; color: var(--accent-text); }
+.calculator-total output { color: var(--accent-text); font-size: clamp(2rem, 4vw, 3rem); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; line-height: 1.15; letter-spacing: -.03em; }
+.reference-tools { display: flex; justify-content: end; margin-block-end: 8px; }
+.reference-tools button { font-size: .8125rem; color: var(--text-muted); }
+.reference-entry { border-bottom: 1px solid var(--border); padding-block: 18px; }
+.reference-entry summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 1rem; cursor: pointer; list-style: none; min-height: 28px; }
+.reference-entry summary::-webkit-details-marker { display: none; }
+.reference-entry summary svg { color: var(--text-muted); transition: transform .15s; }
+.reference-entry[open] summary svg { transform: rotate(90deg); }
+.reference-entry p { color: var(--text-muted); font-size: .9375rem; line-height: 1.65; padding-block: 16px 4px; max-width: 65ch; }
+.reference-category { display: block; font-size: .75rem; color: var(--accent-text); margin-top: 12px; }
+[data-layout=split] .reference-view { columns: 2; column-gap: 24px; }
+[data-layout=split] .reference-entry { break-inside: avoid; }
+[data-layout=split] .reference-tools { column-span: all; }
+[data-layout=compact] .reference-entry { padding-block: 12px; }
+[data-layout=compact] .calendar-view { grid-template-columns: 1fr; }
+[data-layout=compact] .calendar-events { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+.timer-view { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: center; }
+.timer-face { display: grid; justify-items: center; gap: 20px; text-align: center; padding-block: 24px; }
+.timer-face > span { font-size: .9375rem; color: var(--accent-text); }
+.timer-face > output { font-size: clamp(3.5rem, 7vw, 5rem); font-weight: 450; line-height: 1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.timer-face > output > span { color: var(--text-muted); }
+.timer-face > p { color: var(--text-muted); font-size: .875rem; max-width: 28ch; }
+.timer-controls { display: flex; align-items: center; gap: 12px; }
+.timer-controls .timer-play { width: 52px; height: 52px; border-radius: 50%; }
+.timer-queue { display: grid; }
+.timer-queue button { display: flex; align-items: center; text-align: start; gap: 12px; padding: 14px 12px; min-height: 52px; border: 0; border-bottom: 1px solid var(--border); background: transparent; color: var(--foreground); }
+.timer-queue button[aria-pressed=true] { background: var(--accent-soft); border-radius: 8px; }
+.timer-queue strong { flex: 1; font-size: .875rem; font-weight: 500; }
+.timer-queue span { font-size: .75rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+[data-layout=compact] .timer-view { grid-template-columns: 1fr; gap: 12px; }
+[data-layout=compact] .timer-face { gap: 14px; }
+@media (hover: hover) { .layout-options button:hover, .chart-tools button:not(:disabled):hover, .calendar-days button:not([aria-pressed=true]):hover { background: var(--surface-raised); color: var(--foreground); } }
+@media (max-width: 600px) {
+  .layout-options button { width: 32px; height: 36px; padding: 7px; }
+  .view-heading { gap: 8px; }
+  .metric-grid[data-count="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .chart-axis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .chart-axis input { font-size: 1rem; }
+  .data-chart > svg, .is-compact .data-chart > svg { height: 160px; }
+  .pricing-grid { grid-template-columns: 1fr; }
+  .calendar-view, .calculator-view, .timer-view { grid-template-columns: 1fr; gap: 24px; }
+  .calendar-days button { min-height: 40px; }
+  .calculator-total { position: static; grid-row: 1; }
+  .calculator-row input { width: 100px; }
+  [data-layout=split] .task-list, [data-layout=split] .generated-form, [data-layout=split] .itinerary-list { grid-template-columns: 1fr; }
+  [data-layout=split] .comparison-wrap tbody { grid-template-columns: 1fr; }
+  [data-layout=split] .reference-view { columns: 1; }
+  [data-layout=compact] .calendar-events { grid-template-columns: 1fr; }
+  .timer-face { padding-block: 12px; }
+}
+
+.view-dashboard[data-layout=split] { display: grid; grid-template-columns: minmax(130px, .3fr) minmax(0, 1fr); gap: 24px; }
+.view-dashboard[data-layout=split] .view-heading { grid-column: 1 / -1; margin-bottom: 0; }
+.view-dashboard[data-layout=split] .metric-grid { grid-template-columns: 1fr; margin-bottom: 0; align-content: start; }
+[data-layout=split] .calendar-view, [data-layout=compact] .calculator-view, [data-layout=split] .calculator-view, [data-layout=split] .timer-view { grid-template-columns: 1fr; }
+[data-layout=split] .calendar-events, [data-layout=split] .calculator-inputs, [data-layout=split] .timer-queue { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; }
+[data-layout=compact] .calculator-total { grid-row: 1; position: static; }
+[data-layout=compact] .calculator-row { padding-block: 10px; }
+[data-layout=split] .calculator-total { position: static; }
+@media (max-width: 600px) {
+  .calendar-days button { aspect-ratio: auto; width: 100%; min-width: 0; }
+  .view-dashboard[data-layout=split] { grid-template-columns: 1fr; gap: 0; }
+  .view-dashboard[data-layout=split] .view-heading { margin-bottom: 24px; }
+  .view-dashboard[data-layout=split] .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 20px; }
+  [data-layout=split] .calendar-events, [data-layout=split] .calculator-inputs, [data-layout=split] .timer-queue { grid-template-columns: 1fr; }
+}
+
+.examples .examples-more { width: 40px; padding: 10px; justify-content: center; }

@@ -11,7 +11,7 @@ try {
   assert.deepEqual(tools.map(t => t.name).sort(), ['generate_interface', 'list_components']);
   const result = await client.callTool({ name: 'list_components', arguments: {} });
   assert.equal(result.isError, undefined);
-  assert.equal(result.structuredContent.components.length, 8);
+  assert.equal(result.structuredContent.components.length, 12);
   // Validation must fail without a model request, and IP limits must remain shared.
   const invalid = await client.callTool({ name: 'generate_interface', arguments: { prompt: 'a', model: 'paid' } });
   assert.equal(invalid.isError, true);

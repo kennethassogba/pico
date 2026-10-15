@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { parse } from 'partial-json';
-import { ArrowRight, ArrowUp, ArrowUpRight, Download, Check, CircleHelp, Copy, LoaderCircle, Plus, Share2, Square, X } from 'lucide-react';
+import { ArrowRight, ArrowUp, ArrowUpRight, Download, Check, CircleHelp, Copy, LoaderCircle, Plus, Share2, Shuffle, Square, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Preview, samplePrompts } from './Preview';
@@ -14,6 +14,7 @@ const timing = (ms: number) => ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1
 
 export default function App() {
   const [prompt, setPrompt] = useState('');
+  const [exampleOffset, setExampleOffset] = useState(0);
   const [phase, setPhase] = useState<Phase>('idle');
   const [plan, setPlan] = useState<Plan | null>(null);
   const [content, setContent] = useState<Partial<Content>>();
@@ -163,7 +164,7 @@ export default function App() {
         </div></div>
       </section>}
       <div className="composer-area">
-        {!lastPrompt && !busy && <div className="examples" aria-label="Example requests">{samplePrompts.slice(0, 3).map(sample => <button key={sample.type} onClick={() => void generate(sample.prompt)}>{sample.label}<ArrowUpRight size={14} /></button>)}</div>}
+        {!lastPrompt && !busy && <div className="examples" aria-label="Example requests">{[0, 1, 2].map(index => samplePrompts[(exampleOffset + index) % samplePrompts.length]).map(sample => <button key={sample.type} onClick={() => void generate(sample.prompt)}>{sample.label}<ArrowUpRight size={14} /></button>)}<button className="examples-more" type="button" aria-label="More examples" onClick={() => setExampleOffset(old => (old + 3) % samplePrompts.length)}><Shuffle size={16} /></button></div>}
 
         <div id="prompt-error" className="error-message" role="alert">{error && <><span>{error}</span><button onClick={() => void generate(prompt || lastPrompt)}>Try again</button></>}</div>
         <form className="composer" onSubmit={event => { event.preventDefault(); void generate(prompt); }}>

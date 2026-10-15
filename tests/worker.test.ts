@@ -59,10 +59,10 @@ describe('OpenAI Luna contract', () => {
     const payload = JSON.parse(options.body as string);
     expect(url).toBe('https://api.openai.com/v1/decisions');
     expect(payload.model).toBe(DECIDER);
-    expect(payload.questions).toHaveLength(3);
+    expect(payload.questions).toHaveLength(4);
     expect(payload.questions[0]).toMatchObject({ name: 'view', type: 'choice' });
     expect(payload.questions[0].choices.some((choice: { value: string }) => choice.value === 'gallery')).toBe(true);
-    expect(payload.questions[1].choices.some((choice: { value: string }) => choice.value === 'green')).toBe(false);
+    expect(payload.questions.find((question: { name: string }) => question.name === 'accent').choices.some((choice: { value: string }) => choice.value === 'green')).toBe(false);
     expect(JSON.parse(payload.input).request).toBe(input.prompt);
     expect(result).toMatchObject({ view: 'checklist', accent: 'violet', model: DECIDER });
   });

@@ -63,7 +63,7 @@ try {
       check(dimensions.pageWidth <= dimensions.width, `Horizontal page overflow: ${view} ${size.width}`);
       check(dimensions.pageHeight <= dimensions.height, `Page must stay within one viewport: ${view} ${size.width}`);
       check(dimensions.stageScrollWidth <= dimensions.stageWidth + 1, `Horizontal preview overflow: ${view} ${size.width}`);
-      check(dimensions.stageScrollHeight <= dimensions.stageHeight + 1, `Default preview should fit without scrolling: ${view} ${size.width}`);
+      // All entries share one preview page; vertical scrolling is allowed.
       const sendBox = await page.getByRole('button', { name: 'Generate interface', exact: true }).boundingBox();
       assert.ok(sendBox.y >= 0 && sendBox.y + sendBox.height <= size.height, 'Composer must remain reachable.');
       if (view === 'checklist') {

@@ -11,15 +11,17 @@ export const agentLinks = [
 ].join(', ');
 
 export const componentCatalog = viewTypes.map(view => ({ view, description: {
-  dashboard: 'Summary metrics and a chart.', checklist: 'Editable tasks with checkboxes.',
+  dashboard: 'Summary metrics and editable charts with draggable points.', checklist: 'Editable tasks with checkboxes.',
   form: 'Input fields and local validation.', pricing: 'Selectable plans and prices.',
   board: 'A project board with movable task cards.', gallery: 'A visual collection with selectable cards and local illustrative images.',
-  comparison: 'A table comparing options.', itinerary: 'A schedule with times and activities.',
+  comparison: 'Options as a table or cards.', itinerary: 'An agenda with times and activities.',
+  calendar: 'A navigable month with selectable dated events.', calculator: 'Editable numeric inputs and a recalculated total.',
+  accordion: 'Expandable questions and reference entries.', timer: 'An interval timer with start, pause, reset and phase selection.',
 }[view] }));
 
 const guide = `# Pico
 
-Pico turns a prompt into an interactive interface built from eight prebuilt shadcn layouts.
+Pico turns a prompt into an interactive interface built from twelve prebuilt shadcn layouts with standard, compact and split compositions.
 
 ## Connect
 - MCP: ${home}/mcp (Streamable HTTP, no authentication)
@@ -38,7 +40,7 @@ The response is newline-delimited JSON. A plan event selects a layout; delta eve
 MCP tools: list_components and generate_interface. The generation tool returns the completed interface data. To refine, supply previous: {view, content}. Prompts are 3–1,200 characters; history has at most six user/assistant entries. No model override is accepted.
 
 ## Limits and data
-OpenAI gpt-6-luna chooses the layout, accent and illustrative image through POST /v1/decisions. The same model fills the chosen layout through POST /v1/responses with strict structured output, reasoning disabled, a 2,600-token output bound and store:false. Prompts, supplied history and previous content go to OpenAI. Pico does not persist conversations. Generated content is illustrative prototype data, not verified live information. Form actions are local demonstrations. No generated code is executed.
+OpenAI gpt-6-luna chooses the layout, accent and illustrative image through POST /v1/decisions. The same model fills the chosen layout through POST /v1/responses with strict structured output, reasoning disabled, a 3,600-token output bound and store:false. Prompts, supplied history and previous content go to OpenAI. Pico does not persist conversations. Generated content is illustrative prototype data, not verified live information. Form actions are local demonstrations. No generated code is executed.
 
 Generation has a 15-second server timeout and is limited to six requests per IP and eighteen total per minute per Cloudflare location. MCP and browser generation share these limits. Retry after a minute if throttled. Do not include secrets or personal data in example prompts.
 `;
@@ -65,7 +67,7 @@ export async function discovery(request: Request): Promise<Response | null> {
     serverInfo: { name: 'pico', title: 'Pico', version: '1.1.0' }, description: 'Generate interactive interfaces from prebuilt shadcn components.',
     transport: { type: 'streamable-http', endpoint: `${home}/mcp` }, authentication: { required: false },
     tools: [
-      { name: 'list_components', description: 'List the eight available interface layouts.', inputSchema: { type: 'object', properties: {}, additionalProperties: false } },
+      { name: 'list_components', description: 'List the twelve available interface layouts.', inputSchema: { type: 'object', properties: {}, additionalProperties: false } },
       { name: 'generate_interface', description: 'Generate or refine an interface using OpenAI Luna. Returns illustrative prototype content; prompts go to OpenAI.', inputSchema: z.toJSONSchema(requestSchema, { io: 'input' }) },
     ],
   });

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
-export const viewTypes = ['dashboard', 'checklist', 'form', 'pricing', 'comparison', 'itinerary', 'board', 'gallery'] as const;
+export const viewTypes = ['dashboard', 'checklist', 'form', 'pricing', 'comparison', 'itinerary', 'board', 'gallery', 'calendar', 'calculator', 'accordion', 'timer'] as const;
+export const variants = ['standard', 'compact', 'split'] as const;
 export const accents = ['violet', 'blue', 'rose', 'orange', 'cyan', 'amber'] as const;
 export const visuals = ['area', 'bars', 'kyoto', 'coffee', 'desert', 'santorini', 'mountains', 'architecture', 'vinyl', 'concrete', 'ceramics', 'type', 'none'] as const;
 export const viewSchema = z.enum(viewTypes);
@@ -14,11 +15,11 @@ export const contentSchema = z.object({
     name: z.string().min(1).max(100),
     detail: z.string().max(200),
     value: z.string().max(60),
-  })).min(2).max(6),
+  })).min(2).max(12),
   metrics: z.array(z.object({ label: z.string().max(48), value: z.string().max(48) })).min(2).max(4),
 });
 export type Content = z.infer<typeof contentSchema>;
-export type Plan = { view: ViewType; accent: typeof accents[number]; visual?: typeof visuals[number]; confidence: number; decisionMs: number; model: string };
+export type Plan = { view: ViewType; accent: typeof accents[number]; visual?: typeof visuals[number]; variant?: typeof variants[number]; confidence: number; decisionMs: number; model: string };
 export type Result = { plan: Plan; content: Content; generationModel: string; totalMs: number };
 export const requestSchema = z.object({
   prompt: z.string().trim().min(3).max(1200),
@@ -28,4 +29,5 @@ export const requestSchema = z.object({
 
 export const viewNames: Record<ViewType, string> = {
   dashboard: 'Dashboard', checklist: 'Checklist', form: 'Form', pricing: 'Pricing', comparison: 'Comparison', itinerary: 'Itinerary', board: 'Board', gallery: 'Gallery',
+  calendar: 'Calendar', calculator: 'Calculator', accordion: 'Questions', timer: 'Timer',
 };
