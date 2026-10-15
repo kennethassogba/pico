@@ -33,12 +33,12 @@ POST ${home}/api/generate with Content-Type: application/json and a JSON body:
 \`\`\`json
 {"prompt":"Make a launch checklist","history":[]}
 \`\`\`
-The response is newline-delimited JSON. A plan event selects a layout; delta events stream JSON text; reset clears accumulated JSON when an incomplete attempt is automatically replaced; complete returns the first validated content, the actual generation model and totalMs. An optional upgrade event replaces the content with a stronger model result within 3.5 seconds; clients must ignore upgrades after user interaction. Error events contain a recoverable message. Do not treat partial content as complete.
+The response is newline-delimited JSON. A plan event selects a layout; delta events stream JSON text; complete returns validated content, the actual generation model and totalMs. Error events contain a recoverable message. Do not treat partial content as complete.
 
 MCP tools: list_components and generate_interface. The generation tool returns the completed interface data. To refine, supply previous: {view, content}. Prompts are 3–1,200 characters; history has at most six user/assistant entries. No model override is accepted.
 
 ## Limits and data
-Mercury Decider selects the layout. Direct free endpoints nvidia/nemotron-3.5-lightning:free, cohere/north-mini-code:free and nvidia/nemotron-3-super-120b-a12b:free race in parallel with reasoning disabled and zero-price provider filters. The first schema-valid result wins; the larger model can refine it briefly. No Gemma model or free router is requested. Prompts, supplied history and previous content go to OpenRouter. Pico does not persist conversations. Generated content is illustrative prototype data, not verified live information. Form actions are local demonstrations. No generated code is executed.
+OpenAI gpt-6-luna chooses the layout, accent and illustrative image through POST /v1/decisions. The same model fills the chosen layout through POST /v1/responses with strict structured output, reasoning disabled, a 2,600-token output bound and store:false. Prompts, supplied history and previous content go to OpenAI. Pico does not persist conversations. Generated content is illustrative prototype data, not verified live information. Form actions are local demonstrations. No generated code is executed.
 
 Generation has a 15-second server timeout and is limited to six requests per IP and eighteen total per minute per Cloudflare location. MCP and browser generation share these limits. Retry after a minute if throttled. Do not include secrets or personal data in example prompts.
 `;
@@ -66,15 +66,15 @@ export async function discovery(request: Request): Promise<Response | null> {
     transport: { type: 'streamable-http', endpoint: `${home}/mcp` }, authentication: { required: false },
     tools: [
       { name: 'list_components', description: 'List the eight available interface layouts.', inputSchema: { type: 'object', properties: {}, additionalProperties: false } },
-      { name: 'generate_interface', description: 'Generate or refine an interface using free OpenRouter models. Returns illustrative prototype content; prompts go to OpenRouter.', inputSchema: z.toJSONSchema(requestSchema, { io: 'input' }) },
+      { name: 'generate_interface', description: 'Generate or refine an interface using OpenAI Luna. Returns illustrative prototype content; prompts go to OpenAI.', inputSchema: z.toJSONSchema(requestSchema, { io: 'input' }) },
     ],
   });
   if (path === '/openapi.json') return json({
-    openapi: '3.1.0', info: { title: 'Pico', version: '1.1.0', description: 'Generate illustrative interface data using free OpenRouter models. No conversation storage.' }, servers: [{ url: home }],
+    openapi: '3.1.0', info: { title: 'Pico', version: '1.1.0', description: 'Generate illustrative interface data using OpenAI Luna. No conversation storage.' }, servers: [{ url: home }],
     paths: {
       '/api/health': { get: { operationId: 'getHealth', responses: { '200': { description: 'Provider configuration and requested model IDs.' } } } },
-      '/api/generate': { post: { operationId: 'generateInterface', description: 'Streams plan, delta, reset, complete, upgrade or error events as NDJSON. Same per-location rate limits as MCP. Browser calls require a same-origin Origin.', requestBody: { required: true, content: { 'application/json': { schema: z.toJSONSchema(requestSchema, { io: 'input' }) } } }, responses: {
-        '200': { description: 'NDJSON stream. Only complete and upgrade events contain validated content; errors may occur after HTTP 200.', content: { 'application/x-ndjson': { schema: { type: 'string' } } } },
+      '/api/generate': { post: { operationId: 'generateInterface', description: 'Streams plan, delta, complete or error events as NDJSON. Same per-location rate limits as MCP. Browser calls require a same-origin Origin.', requestBody: { required: true, content: { 'application/json': { schema: z.toJSONSchema(requestSchema, { io: 'input' }) } } }, responses: {
+        '200': { description: 'NDJSON stream. Only complete events contain validated content; errors may occur after HTTP 200.', content: { 'application/x-ndjson': { schema: { type: 'string' } } } },
         '400': { description: 'Invalid input.' }, '413': { description: 'Body exceeds 16 KB.' }, '429': { description: 'Rate limited; retry after a minute.' }, '503': { description: 'Provider not configured.' },
       } } },
     },

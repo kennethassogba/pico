@@ -2,15 +2,15 @@
 
 A minimal chat that turns requests into interactive shadcn interfaces. [Open Pico](https://keff.uk/pico).
 
-The dark interface keeps a single centered composer and a restrained shell. Generated views add SVG charts, completion rings, a project board, visual collections, forms, pricing and timelines. Mercury chooses among six accent themes and six locally served illustrative photographs when the subject matches. Content appears from streamed JSON, with reduced-motion support. Technical metadata and JSON export stay in the details dialog.
+The dark interface keeps a bottom composer and a restrained shell. Generated views add SVG charts, completion rings, a project board, visual collections, forms, pricing and timelines. Luna chooses among six accent themes and six locally served illustrative photographs when the subject matches. Content appears from streamed JSON, with reduced-motion support. Technical metadata and JSON export stay in the details dialog.
 
-`inception/mercury-decide:free` chooses one of eight prebuilt layouts through OpenRouter’s typed Decisions API. The layout renders as soon as the decision arrives. Three direct free model endpoints then race: `nvidia/nemotron-3.5-lightning:free`, `cohere/north-mini-code:free`, and `nvidia/nemotron-3-super-120b-a12b:free`. Reasoning is disabled and a zero-price provider filter prevents paid routing. The first schema-valid result becomes interactive immediately. The larger candidate may refine it within 3.5 seconds, provided no user interaction has occurred and no entries would be dropped. A new prompt cancels pending refinement. There is no Gemma model or free router in this pipeline. Each candidate has a 12-second deadline and the request has a 15-second server limit. Actual provider speed and availability vary.
+`gpt-6-luna` selects a layout, accent and visual through OpenAI’s native Decisions API. The layout renders as soon as the decision arrives. Luna then fills it through the Responses API with streamed strict JSON, reasoning disabled, `store: false` and a 2,600-token output bound. Content renders incrementally and becomes interactive after validation. One generation request runs per prompt; there is no model race or OpenRouter dependency. The server request has a 15-second deadline.
 
 The catalog includes dashboard, checklist, form, pricing, comparison, itinerary, board and gallery. Checkboxes, task additions, field entries, moving board cards and selecting plans or collection cards work locally. Follow-up prompts refine the current preview. JSON export downloads the content and selected layout; it is not an application source export.
 
 ## Development
 
-Use Node.js 24. Run `npm ci`, add `OPENROUTER_API_KEY` to the ignored `.dev.vars` file, then run `npm run dev`. Open `http://127.0.0.1:5174/pico/`.
+Use Node.js 24. Run `npm ci`, add `OPENAI_API_KEY` to the ignored `.dev.vars` file, then run `npm run dev`. Open `http://127.0.0.1:5174/pico/`.
 
 Run `npm run check`, `npm test`, `npm run test:ui` and `npm run test:streaming` with the dev server running. The interface and streaming checks use explicit mocked provider events; they do not establish live model performance. Run `npx cf deploy --dry-run` to validate the production bundle.
 
@@ -33,18 +33,18 @@ Static Open Graph and Twitter metadata reference a 1200 × 630 PNG of the real i
 
 GitHub Actions verifies each push to `main`, then deploys the Cloudflare Worker `pico-keff`. Add `CLOUDFLARE_API_TOKEN` as a repository Actions secret. It needs Workers Scripts edit on the configured account, Workers Routes edit and Zone read on `keff.uk`, plus Account Settings read for CLI account discovery. The token belongs only in encrypted GitHub secrets.
 
-The OpenRouter key belongs in the Worker’s encrypted `OPENROUTER_API_KEY` secret. It is separate from the deployment token and is never needed by GitHub builds. For the first deployment, use `npx cf deploy --secrets-file /path/to/restricted-secrets.env`; subsequent CI deployments preserve existing Worker secrets. The exact `/pico` and `/pico/*` routes leave the portfolio and other paths untouched.
+The OpenAI key belongs in the Worker’s encrypted `OPENAI_API_KEY` secret. It is separate from the deployment token and is never needed by GitHub builds. For the first deployment, use `npx cf deploy --secrets-file /path/to/restricted-secrets.env`; subsequent CI deployments preserve existing Worker secrets. The exact `/pico` and `/pico/*` routes leave the portfolio and other paths untouched.
 
 ## Data and limits
 
-Prompts, up to three recent exchanges and the current preview are sent to OpenRouter and its selected provider. Pico has no conversation database, browser storage, analytics SDK or prompt logging. Closing or reloading the tab clears the preview. Cloudflare request logs and provider processing policies still apply.
+Prompts, up to three recent exchanges and the current preview are sent to OpenAI. Pico has no conversation database, browser storage, analytics SDK or prompt logging. Closing or reloading the tab clears the preview. Cloudflare request logs and provider processing policies still apply.
 
 Generated content is illustrative. Forms do not send or save entries, pricing selections do not purchase anything, and dashboards do not connect to live data. Output is validated against a bounded schema and rendered as React text. Generated HTML and JavaScript are never executed.
 
-The public endpoint limits requests to six per IP and eighteen aggregate requests per minute per Cloudflare location. These are abuse controls, not a global daily quota. OpenRouter’s free capacity and account limits can still interrupt service. Provider errors preserve the previous preview and offer a retry. No paid fallback is configured.
+The public endpoint limits requests to six per IP and eighteen aggregate requests per minute per Cloudflare location. These are abuse controls, not a global daily quota. OpenAI account limits can still interrupt service. Provider errors preserve the previous preview and offer a retry. The configured Luna calls use the server-side OpenAI account; no browser credential is accepted.
 
 The app uses a single viewport with a bottom composer on mobile. Preview pages keep normal content compact. Exceptionally long content, enlarged text and the JSON view can scroll within their panel so content remains reachable.
 
-API references: [Decisions](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request), [free router](https://openrouter.ai/docs/guides/routing/routers/free-router), [Cloudflare CLI](https://developers.cloudflare.com/cf/projects/cloudflare-config/).
+API references: [OpenAI Decisions](https://developers.openai.com/api/docs/guides/decisions), [Responses](https://developers.openai.com/api/docs/guides/text), [Cloudflare CLI](https://developers.cloudflare.com/cf/projects/cloudflare-config/).
 
-The truncation handling follows OpenRouter’s [shared reasoning/output token budget](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens). Output schema validation, rather than the provider finish label alone, determines whether an interface is complete. Photo source and license links are recorded in `public/images/README.md`.
+Output schema validation determines whether an interface is complete. Photo source and license links are recorded in `public/images/README.md`.

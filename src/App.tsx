@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Preview, samplePrompts } from './Preview';
 import { contentSchema, viewNames, type Content, type Plan, type Result } from './schema';
-import { GENERATOR } from './models';
+import { DECIDER, GENERATOR } from './models';
 import { photoFor } from './media';
 
 type Phase = 'idle' | 'deciding' | 'filling';
@@ -35,9 +35,18 @@ export default function App() {
   useEffect(() => () => controller.current?.abort(), []);
   useEffect(() => {
     const viewport = window.visualViewport;
-    const resize = () => document.documentElement.style.setProperty('--app-height', `${viewport?.height || window.innerHeight}px`);
-    resize(); viewport?.addEventListener('resize', resize);
-    return () => viewport?.removeEventListener('resize', resize);
+    let frame = 0;
+    const resize = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (viewport && viewport.scale !== 1) return;
+        document.documentElement.style.setProperty('--app-height', `${viewport?.height || window.innerHeight}px`);
+        document.documentElement.style.setProperty('--app-top', `${Math.max(0, viewport?.offsetTop || 0)}px`);
+      });
+    };
+    resize();
+    viewport?.addEventListener('resize', resize); viewport?.addEventListener('scroll', resize); window.addEventListener('resize', resize);
+    return () => { cancelAnimationFrame(frame); viewport?.removeEventListener('resize', resize); viewport?.removeEventListener('scroll', resize); window.removeEventListener('resize', resize); };
   }, []);
 
   function restore() { const old = backup.current; setResult(old); setPlan(old?.plan ?? null); setContent(old?.content); }
@@ -126,7 +135,7 @@ export default function App() {
       </div>
     </header>
     <main className="workspace">
-      {!plan && !busy && !error && <h1 className="empty-heading">What would you like to make?</h1>}
+      {!plan && !busy && !error && <div className="empty-state"><h1 className="empty-heading">What would you like to make?</h1></div>}
       {(plan || busy || error) && <section className="preview-panel" aria-label="Generated interface">
         <h1 className="sr-only">Your interface</h1>
         {lastPrompt && <button className="request-bubble" onClick={() => historyDialog.current?.showModal()} aria-label="View chat"><span>{lastPrompt}</span></button>}
@@ -135,22 +144,22 @@ export default function App() {
         </div></div>
       </section>}
       <div className="composer-area">
+        {!lastPrompt && !busy && <div className="examples" aria-label="Example requests">{samplePrompts.slice(0, 3).map(sample => <button key={sample.type} onClick={() => void generate(sample.prompt)}>{sample.label}<ArrowUpRight size={14} /></button>)}</div>}
+        {busy && <div className="generation-status" role="status"><span className="generation-dot" />{phase === 'deciding' ? 'Choosing a layout…' : 'Generating…'}</div>}
         <div id="prompt-error" className="error-message" role="alert">{error && <><span>{error}</span><button onClick={() => void generate(prompt || lastPrompt)}>Try again</button></>}</div>
         <form className="composer" onSubmit={event => { event.preventDefault(); void generate(prompt); }}>
           <label htmlFor="prompt" className="sr-only">Describe your interface</label>
           <Textarea id="prompt" ref={input} value={prompt} onChange={e => setPrompt(e.target.value)} maxLength={1200} placeholder={result ? 'What would you change?' : 'Describe your interface'} rows={1} aria-describedby={error ? 'prompt-error' : undefined} aria-invalid={error.startsWith('Describe your idea')} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); if (!busy) void generate(prompt); } }} />
           {busy ? <Button type="button" size="icon" onClick={() => controller.current?.abort()} aria-label="Stop generation"><Square size={16} /></Button> : <Button type="submit" size="icon" aria-label="Generate interface"><ArrowUp size={21} /></Button>}
         </form>
-        {!lastPrompt && !busy && <div className="examples" aria-label="Example requests">{samplePrompts.slice(0, 3).map(sample => <button key={sample.type} onClick={() => void generate(sample.prompt)}>{sample.label}<ArrowUpRight size={14} /></button>)}</div>}
-        {busy && <div className="generation-status" role="status"><span className="generation-dot" />{phase === 'deciding' ? 'Choosing a layout…' : 'Generating…'}</div>}
       </div>
     </main>
     <div role="status" className="sr-only">{status}{notice ? `. ${notice}` : ''}</div>
     <dialog ref={help} className="info-dialog" onClick={event => { if (event.target === event.currentTarget) help.current?.close(); }}>
       <div className="dialog-heading"><h2>About this interface</h2><Button variant="ghost" size="icon" onClick={() => help.current?.close()} aria-label="Close about Pico"><X size={20} /></Button></div>
-      <dl><dt>Layout model</dt><dd>inception/mercury-decide:free</dd><dt>Content model</dt><dd>{result?.generationModel || GENERATOR}</dd>{result && <><dt>Response time</dt><dd>Layout: {timing(result.plan.decisionMs)} · Content: {timing(result.totalMs)}</dd></>}</dl>
-      <p>Built from eight prebuilt shadcn layouts. Content streams in after the layout is chosen. Only free OpenRouter models are used; availability depends on provider limits.</p>
-      <p>This is an interactive prototype with illustrative content. Form entries, selections and edits stay in this tab. Prompts and the current preview are sent to OpenRouter. Pico does not store conversations.</p>
+      <dl><dt>Layout model</dt><dd>{DECIDER} · Decisions</dd><dt>Content model</dt><dd>{result?.generationModel || GENERATOR}</dd>{result && <><dt>Response time</dt><dd>Layout: {timing(result.plan.decisionMs)} · Content: {timing(result.totalMs)}</dd></>}</dl>
+      <p>Built from eight prebuilt shadcn layouts. Content streams in after the layout is chosen. OpenAI Luna selects the layout and fills its content.</p>
+      <p>This is an interactive prototype with illustrative content. Form entries, selections and edits stay in this tab. Prompts and the current preview are sent to OpenAI. Pico does not store conversations.</p>
       {photos.length > 0 && <p>Illustrative photos: {photos.map((photo, i) => <span key={photo!.src}>{i > 0 && ", "}<a href={photo!.source} target="_blank" rel="noreferrer">{photo!.author} on Unsplash</a></span>)}.</p>}
       <div className="detail-actions">{result && <Button variant="outline" onClick={download}><Download size={16} />Download data</Button>}<a href="https://github.com/kennethassogba/pico" target="_blank" rel="noreferrer">GitHub<ArrowUpRight size={14} /></a><a href="https://keff.uk/">k<sub>eff</sub><ArrowUpRight size={14} /></a></div>
       {result && <details className="data-details"><summary>Interface data</summary><pre tabIndex={0} aria-label="Interface JSON">{JSON.stringify({ view: result.plan.view, ...result.content }, null, 2)}</pre></details>}

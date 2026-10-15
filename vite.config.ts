@@ -8,5 +8,5 @@ export default defineConfig({
   base: '/pico/',
   plugins: [react(), tailwindcss(), cloudflare({ experimental: { newConfig: true }, inspectorPort: false })],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
-  server: { port: 5174, strictPort: true },
+  server: { port: 5174, strictPort: true, watch: { ignored: ['**/output/**'] } },
 });

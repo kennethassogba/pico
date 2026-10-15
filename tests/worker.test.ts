@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { decide, generation, handle, readBounded } from '../worker/index';
 import { contentSchema, requestSchema, type Plan } from '../src/schema';
-import { GENERATOR, GENERATION_MODELS, QUALITY_MODEL } from '../src/models';
+import { DECIDER, GENERATOR } from '../src/models';
 
 const content = {
   title: 'Website launch', description: 'Tasks for this weekend.', labels: ['Task', 'Category'],
   items: [{ name: 'Write the copy', detail: 'Keep it short.', value: 'Content' }, { name: 'Deploy', detail: 'Check the public URL.', value: 'Release' }],
   metrics: [{ label: 'Tasks', value: '2' }, { label: 'Complete', value: '0' }],
 };
-const plan: Plan = { view: 'checklist', accent: 'violet', confidence: 0.9, decisionMs: 100, model: 'inception/mercury-decide:free' };
+const plan: Plan = { view: 'checklist', accent: 'violet', confidence: 0.9, decisionMs: 100, model: DECIDER };
 const input = requestSchema.parse({ prompt: 'Make a launch checklist.' });
 const limiter = { limit: vi.fn(async () => ({ success: true })) };
-const env = { ASSETS: { fetch: vi.fn() }, REQUEST_LIMITER: limiter, GLOBAL_LIMITER: limiter, OPENROUTER_API_KEY: 'test-key' };
+const env = { ASSETS: { fetch: vi.fn() }, REQUEST_LIMITER: limiter, GLOBAL_LIMITER: limiter, OPENAI_API_KEY: 'test-key' };
 const context = { waitUntil: vi.fn() };
 function request(body: unknown = { prompt: 'Make a checklist.' }, extra: Record<string, string> = {}) {
   return new Request('https://keff.uk/pico/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://keff.uk', ...extra }, body: JSON.stringify(body) });
@@ -42,83 +42,86 @@ describe('request boundary', () => {
     expect((await handle(request(), env as never, context as never)).status).toBe(429);
   });
   it('reports an unconfigured secret without exposing credentials', async () => {
-    const response = await handle(request(), { ...env, OPENROUTER_API_KEY: undefined } as never, context as never);
+    const response = await handle(request(), { ...env, OPENAI_API_KEY: undefined } as never, context as never);
     expect(response.status).toBe(503); expect(await response.text()).not.toContain('test-key');
   });
 });
 
-describe('free provider contract', () => {
-  it('uses the real decisions schema and hardcodes the free Mercury endpoint', async () => {
-    const fetcher = vi.fn(async () => Response.json({ answers: { view: { choice: 'checklist', confidence: 0.9 }, accent: { choice: 'violet' } } }));
+function sse(text: string, terminal = 'response.completed') {
+  return `data: ${JSON.stringify({ type: 'response.output_text.delta', delta: text })}\n\ndata: ${JSON.stringify({ type: terminal, response: { model: GENERATOR } })}`;
+}
+
+describe('OpenAI Luna contract', () => {
+  it('uses native named Decisions choice questions and validates typed answers', async () => {
+    const fetcher = vi.fn(async () => Response.json({ answers: [{ type: 'choice', name: 'view', choice: 'checklist', confidence: .9 }, { type: 'choice', name: 'accent', choice: 'violet' }, { type: 'choice', name: 'visual', choice: 'none' }] }));
     const result = await decide(input, 'test-key', new AbortController().signal, fetcher as typeof fetch);
     const [url, options] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
     const payload = JSON.parse(options.body as string);
-    expect(url).toBe('https://openrouter.ai/api/alpha/decisions');
-    expect(payload.model).toBe('inception/mercury-decide:free');
-    expect(payload.questions.view.type).toBe('choice'); expect(result.view).toBe('checklist');
-    expect(payload.questions.accent.criteria).not.toHaveProperty('green');
+    expect(url).toBe('https://api.openai.com/v1/decisions');
+    expect(payload.model).toBe(DECIDER);
+    expect(payload.questions).toHaveLength(3);
+    expect(payload.questions[0]).toMatchObject({ name: 'view', type: 'choice' });
+    expect(payload.questions[0].choices.some((choice: { value: string }) => choice.value === 'gallery')).toBe(true);
+    expect(payload.questions[1].choices.some((choice: { value: string }) => choice.value === 'green')).toBe(false);
+    expect(JSON.parse(payload.input).request).toBe(input.prompt);
+    expect(result).toMatchObject({ view: 'checklist', accent: 'violet', model: DECIDER });
   });
-  it('rejects a view outside the prebuilt catalog', async () => {
-    const fetcher = vi.fn(async () => Response.json({ answers: { view: { choice: '<script>' }, accent: { choice: 'violet' } } }));
-    await expect(decide(input, 'test-key', new AbortController().signal, fetcher as typeof fetch)).rejects.toThrow();
+  it('rejects refusals or choices outside the prebuilt catalog', async () => {
+    for (const answer of [{ type: 'refusal', name: 'view' }, { type: 'choice', name: 'view', choice: '<script>' }]) {
+      const fetcher = vi.fn(async () => Response.json({ answers: [answer] }));
+      await expect(decide(input, 'test-key', new AbortController().signal, fetcher as typeof fetch)).rejects.toThrow();
+    }
   });
-  it('starts direct free endpoints together and validates fragmented SSE', async () => {
-    const fetcher = vi.fn(async (_url: string, options: RequestInit) => {
-      const body = JSON.parse(options.body as string);
-      const message = `data: ${JSON.stringify({ model: body.model, choices: [{ delta: { content: JSON.stringify(content) }, finish_reason: 'length' }] })}\n\ndata: [DONE]\n\n`;
-      const bytes = new TextEncoder().encode(message);
-      return new Response(new ReadableStream({ start(c) { for (let i = 0; i < bytes.length; i += 13) c.enqueue(bytes.slice(i, i + 13)); c.close(); } }));
-    });
+  it('parses fragmented Responses SSE, keeps partial data incremental, and normalizes nullable images', async () => {
+    const raw = { ...content, items: content.items.map(item => ({ ...item, image: null })) };
+    const message = sse(JSON.stringify(raw)), bytes = new TextEncoder().encode(message);
+    const fetcher = vi.fn(async () => new Response(new ReadableStream({ start(c) { for (let i = 0; i < bytes.length; i += 13) c.enqueue(bytes.slice(i, i + 13)); c.close(); } })));
     const events = [];
     for await (const event of generation(input, plan, 'test-key', new AbortController().signal, fetcher as typeof fetch)) events.push(event);
-    expect(fetcher).toHaveBeenCalledTimes(3);
-    expect(events.filter(event => event.type === 'content')).toHaveLength(1);
-    const bodies = fetcher.mock.calls.map(call => JSON.parse(call[1].body as string));
-    expect(bodies.map(body => body.model)).toEqual([...GENERATION_MODELS]);
-    for (const body of bodies) { expect(body.reasoning).toEqual({ enabled: false }); expect(body.provider.max_price).toEqual({ prompt: 0, completion: 0 }); expect(body.model).not.toMatch(/gemma|openrouter\/free/); }
+    expect(events[0]).toMatchObject({ type: 'delta' });
+    expect(events.at(-1)).toEqual({ type: 'content', content, model: GENERATOR });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    const [url, options] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
+    const body = JSON.parse(options.body as string);
+    expect(url).toBe('https://api.openai.com/v1/responses');
+    expect(body.model).toBe(GENERATOR); expect(body.store).toBe(false);
+    expect(body.reasoning).toEqual({ effort: 'none' });
+    expect(body.text.format).toMatchObject({ type: 'json_schema', strict: true });
+    expect(body.text.format.schema.properties.items.items.required).toContain('image');
   });
-  it('ignores truncated and reasoning-only candidates when another is valid', async () => {
-    const fetcher = vi.fn(async (_url: string, options: RequestInit) => {
-      const model = JSON.parse(options.body as string).model;
-      const text = model === QUALITY_MODEL ? JSON.stringify(content) : model === GENERATOR ? '{"title":"unfinished' : '';
-      return new Response(`data: ${JSON.stringify({ model, choices: [{ delta: { content: text }, finish_reason: 'length' }] })}`);
-    });
+  it('never marks empty or truncated model output as complete', async () => {
+    for (const text of ['', '{"title":"unfinished', '{}']) {
+      const fetcher = vi.fn(async () => new Response(sse(text, 'response.incomplete')));
+      await expect(async () => { for await (const event of generation(input, plan, 'test-key', new AbortController().signal, fetcher as typeof fetch)) void event; }).rejects.toThrow('could not finish');
+    }
+  });
+  it('accepts complete validated JSON even if the provider labels it incomplete', async () => {
+    const fetcher = vi.fn(async () => new Response(sse(JSON.stringify(content), 'response.incomplete')));
     const events = [];
     for await (const event of generation(input, plan, 'test-key', new AbortController().signal, fetcher as typeof fetch)) events.push(event);
-    expect(events.at(-1)).toEqual({ type: 'content', content, model: QUALITY_MODEL });
+    expect(events.at(-1)?.type).toBe('content');
   });
-  it('fails cleanly when no candidate returns valid content', async () => {
-    const fetcher = vi.fn(async () => new Response('data: {"choices":[{"delta":{"content":"{}"}}]}\n'));
-    await expect(async () => { for await (const event of generation(input, plan, 'test-key', new AbortController().signal, fetcher as typeof fetch)) void event; }).rejects.toThrow('could not finish');
-  });
-  it('delivers the first result before a late quality refinement', async () => {
-    let release!: () => void;
-    const gate = new Promise<void>(resolve => { release = resolve; });
-    const fetcher = vi.fn(async (_url: string, options: RequestInit) => {
-      const model = JSON.parse(options.body as string).model;
-      if (model === QUALITY_MODEL) await gate;
-      return new Response(`data: ${JSON.stringify({ model, choices: [{ delta: { content: JSON.stringify({ ...content, title: model === QUALITY_MODEL ? 'Refined launch' : content.title }) } }] })}\n`);
-    });
+  it('reads completed output when the connection has no delta frames', async () => {
+    const fetcher = vi.fn(async () => new Response(`data: ${JSON.stringify({ type: 'response.completed', response: { model: GENERATOR, output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(content) }] }] } })}`));
     const events = [];
-    for await (const event of generation(input, plan, 'test-key', new AbortController().signal, fetcher as typeof fetch)) { events.push(event); if (event.type === 'content') release(); }
-    expect(events.find(event => event.type === 'content')?.content.title).toBe(content.title);
-    expect(events.at(-1)).toMatchObject({ type: 'upgrade', content: { title: 'Refined launch' } });
+    for await (const event of generation(input, plan, 'test-key', new AbortController().signal, fetcher as typeof fetch)) events.push(event);
+    expect(events.at(-1)).toEqual({ type: 'content', content, model: GENERATOR });
   });
-  it('reports the shared daily free quota instead of an incomplete-output error', async () => {
-    const fetcher = vi.fn(async () => Response.json({ error: { message: 'Rate limit exceeded: free-models-per-day' } }, { status: 429 }));
-    await expect(async () => { for await (const event of generation(input, plan, 'test-key', new AbortController().signal, fetcher as typeof fetch)) void event; }).rejects.toThrow('daily free-model limit');
+  it('does not report a failed stream as completed content', async () => {
+    const fetcher = vi.fn(async () => new Response(sse(JSON.stringify(content), 'response.failed')));
+    await expect(async () => { for await (const event of generation(input, plan, 'test-key', new AbortController().signal, fetcher as typeof fetch)) void event; }).rejects.toThrow('could not complete');
   });
-  it('turns provider throttling into a recoverable message', async () => {
+  it('reports provider throttling as a recoverable error', async () => {
     const fetcher = vi.fn(async () => new Response('', { status: 429 }));
-    await expect(decide(input, 'test-key', new AbortController().signal, fetcher as typeof fetch)).rejects.toThrow('Wait a minute');
+    await expect(decide(input, 'test-key', new AbortController().signal, fetcher as typeof fetch)).rejects.toThrow('Wait a moment');
   });
-  it('cancels the race when the user stops the request', async () => {
+  it('propagates cancellation without retrying', async () => {
     const abort = new AbortController();
-    const fetcher = vi.fn(async () => { abort.abort(new Error('Stopped')); throw new Error('Stopped'); });
+    const fetcher = vi.fn(async () => { abort.abort(); throw new Error('Stopped'); });
     await expect(async () => { for await (const event of generation(input, plan, 'test-key', abort.signal, fetcher as typeof fetch)) void event; }).rejects.toThrow('Stopped');
-    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
-  it('validates bounded output rather than executing generated code', () => {
+  it('validates bounded output instead of executing generated code', () => {
     expect(contentSchema.safeParse({ ...content, items: [{ name: 'a'.repeat(101), detail: '', value: '' }] }).success).toBe(false);
     expect(contentSchema.safeParse(content).success).toBe(true);
   });

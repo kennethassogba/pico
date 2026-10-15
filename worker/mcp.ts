@@ -12,7 +12,7 @@ export async function mcp(request: Request, ctx: ExecutionContext, generate: (re
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     }, async () => ({ content: [{ type: 'text' as const, text: JSON.stringify(componentCatalog) }], structuredContent: { components: componentCatalog } }));
     server.registerTool('generate_interface', {
-      description: 'Generate or refine an interface using free OpenRouter models. Prompts and supplied context go to OpenRouter. Returns illustrative prototype data. No publication or form submission occurs.',
+      description: 'Generate or refine an interface using OpenAI Luna. Prompts and supplied context go to OpenAI. Returns illustrative prototype data. No publication or form submission occurs.',
       inputSchema: requestSchema,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     }, async input => {

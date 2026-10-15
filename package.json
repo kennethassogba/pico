@@ -8,7 +8,7 @@
     "build": "vite build",
     "check": "tsc --noEmit",
     "test": "vitest run",
-    "test:ui": "node scripts/check-interface.mjs",
+    "test:ui": "node scripts/check-interface.mjs && node scripts/check-mobile-composer.mjs",
     "deploy": "cf deploy",
     "test:streaming": "node scripts/check-streaming.mjs && node scripts/check-refinement.mjs"
   },

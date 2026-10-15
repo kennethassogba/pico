@@ -43,6 +43,8 @@ try {
     await page.getByRole('heading', { name: 'What would you like to make?' }).waitFor();
     const emptyAudit = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     assert.equal(emptyAudit.violations.length, 0, `Empty ${size.width}: ${JSON.stringify(emptyAudit.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => n.target) })))}`);
+    const emptyComposer = await page.locator('.composer').boundingBox();
+    assert.ok(size.height - emptyComposer.y - emptyComposer.height <= 40, 'Empty-state composer must sit at the bottom.');
     await page.screenshot({ path: `output/playwright/empty-${size.width}.png` });
     for (const view of ['dashboard', 'checklist', 'form', 'pricing', 'comparison', 'board', 'gallery', 'itinerary']) {
       await page.route('**/pico/api/generate', route => route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: payload(view) }));
