@@ -98,7 +98,13 @@ async function* generationAttempt(input: z.infer<typeof requestSchema>, plan: Pl
       ],
     }),
   });
-  if (!response.ok) upstreamError(response.status);
+  if (!response.ok) {
+    if (response.status === 429) {
+      const errorBody = await readBounded(response.body, 8_000).catch(() => '');
+      if (errorBody.includes('free-models-per-day')) throw new ApiError(429, 'The daily free-model limit has been reached. Try again after it resets.');
+    }
+    upstreamError(response.status);
+  }
   if (!response.body) throw new IncompleteOutput();
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -147,6 +153,7 @@ export async function* generation(input: z.infer<typeof requestSchema>, plan: Pl
   const controllers = GENERATION_MODELS.map(() => new AbortController());
   const texts = GENERATION_MODELS.map(() => '');
   const ended = new Set<number>();
+  const failures = new Map<number, unknown>();
   let owner = -1, winner = -1, winnerItems = 0;
   let deadline = setTimeout(() => push({ index: -1, done: true }), 12_000);
   const onAbort = () => push({ index: -1, error: signal.reason || new Error('Stopped') });
@@ -172,10 +179,13 @@ export async function* generation(input: z.infer<typeof requestSchema>, plan: Pl
       }
       const { index, event } = next;
       if (next.done || next.error) {
+        if (next.error) failures.set(index, next.error);
         ended.add(index);
         if (owner === index && winner < 0) owner = -1;
         if (ended.size === GENERATION_MODELS.length) {
           if (winner >= 0) return;
+          const errors = [...failures.values()];
+          if (errors.length === GENERATION_MODELS.length && errors.every(error => error instanceof ApiError && error.status === 429)) throw errors[0];
           throw new ApiError(502, 'The free models could not finish this interface. Try again.');
         }
         if (winner >= 0 && ended.has(GENERATION_MODELS.indexOf(QUALITY_MODEL))) return;

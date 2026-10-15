@@ -104,6 +104,10 @@ describe('free provider contract', () => {
     expect(events.find(event => event.type === 'content')?.content.title).toBe(content.title);
     expect(events.at(-1)).toMatchObject({ type: 'upgrade', content: { title: 'Refined launch' } });
   });
+  it('reports the shared daily free quota instead of an incomplete-output error', async () => {
+    const fetcher = vi.fn(async () => Response.json({ error: { message: 'Rate limit exceeded: free-models-per-day' } }, { status: 429 }));
+    await expect(async () => { for await (const event of generation(input, plan, 'test-key', new AbortController().signal, fetcher as typeof fetch)) void event; }).rejects.toThrow('daily free-model limit');
+  });
   it('turns provider throttling into a recoverable message', async () => {
     const fetcher = vi.fn(async () => new Response('', { status: 429 }));
     await expect(decide(input, 'test-key', new AbortController().signal, fetcher as typeof fetch)).rejects.toThrow('Wait a minute');
