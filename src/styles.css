@@ -469,3 +469,57 @@ h1, h2, h3, p { margin: 0; }
 }
 .is-compact .cover-skeleton { min-height: 150px; }
 .is-compact .pending-collection > :nth-child(n+2) { display: none; }
+
+/* A collection is one composition; every item stays visible together. */
+.gallery-grid[data-count] { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.gallery-grid[data-count="2"], .gallery-grid[data-count="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.gallery-grid[data-count] .type-cover { min-height: 160px; padding: 18px; gap: 16px; }
+.gallery-grid[data-count] .type-cover strong { font-size: clamp(1.5rem, 2.7vw, 2.25rem); line-height: 1.15; }
+.gallery-grid[data-count] .type-cover > svg { width: 18px; height: 18px; }
+.gallery-grid[data-count] .gallery-entry > img { height: 160px; }
+.gallery-grid[data-count] .gallery-caption { gap: 10px; padding-block: 12px 10px; }
+.gallery-grid[data-count] .gallery-caption > span > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.gallery-grid[data-count] .gallery-tag { font-size: .75rem; }
+.gallery-grid[data-count] .cover-category { font-size: .75rem; }
+@media (max-width: 600px) {
+  .gallery-grid[data-count] { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 14px; }
+  .gallery-grid[data-count="3"] > :first-child { grid-column: 1 / -1; }
+  .gallery-grid[data-count] .type-cover { min-height: 128px; padding: 16px; gap: 12px; }
+  .gallery-grid[data-count] .type-cover strong { font-size: 1.625rem; }
+  .gallery-grid[data-count="3"] > :first-child .type-cover { min-height: 150px; }
+  .gallery-grid[data-count="3"] > :first-child .type-cover strong { font-size: 2.5rem; }
+  .gallery-grid[data-count] .gallery-entry > img { height: 128px; }
+  .gallery-grid[data-count="3"] > :first-child > img { height: 150px; }
+  .gallery-grid[data-count] .gallery-caption { padding-block: 8px; }
+  .gallery-grid[data-count] .gallery-caption strong { font-size: .875rem; }
+  .gallery-grid[data-count] .gallery-caption > span > span { font-size: .75rem; }
+  .gallery-grid[data-count] .gallery-tag { display: none; }
+  .gallery-grid[data-count="5"] .type-cover, .gallery-grid[data-count="6"] .type-cover { min-height: 88px; padding: 12px; gap: 8px; }
+  .gallery-grid[data-count="5"] .type-cover strong, .gallery-grid[data-count="6"] .type-cover strong { font-size: 1.125rem; }
+  .gallery-grid[data-count="5"] .gallery-entry > img, .gallery-grid[data-count="6"] .gallery-entry > img { height: 88px; }
+  .gallery-grid[data-count="5"] .type-cover > svg, .gallery-grid[data-count="6"] .type-cover > svg { display: none; }
+}
+.is-compact .gallery-grid[data-count] { gap: 10px; }
+.is-compact .gallery-grid[data-count] .type-cover { min-height: 80px; padding: 10px; gap: 8px; }
+.is-compact .gallery-grid[data-count] .type-cover strong { font-size: 1.125rem; line-height: 1.2; }
+.is-compact .gallery-grid[data-count] .type-cover > svg { display: none; }
+.is-compact .gallery-grid[data-count] .gallery-entry > img { height: 80px; }
+.is-compact .gallery-grid[data-count] .gallery-caption { padding-block: 6px; }
+.is-compact .gallery-grid[data-count] .gallery-caption > span > span { display: none; }
+.is-compact .gallery-grid[data-count] .gallery-caption strong { font-size: .8125rem; line-height: 1.4; }
+.is-compact .gallery-grid[data-count] .cover-category { font-size: .75rem; }
+.is-compact .gallery-grid[data-count="3"] { grid-template-columns: 1fr; }
+.is-compact .gallery-grid[data-count="3"] > :first-child { grid-column: auto; }
+.is-compact .gallery-grid[data-count="3"] .gallery-entry { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 14px; }
+.is-compact .gallery-grid[data-count="3"] .type-cover { min-height: 76px; }
+.is-compact .gallery-grid[data-count="3"] .type-cover strong { font-size: 1rem; }
+.is-compact .gallery-grid[data-count="3"] .gallery-entry > img { height: 76px; }
+.is-compact .gallery-grid[data-count="3"] .gallery-caption > span > span { display: -webkit-box; }
+
+.gallery-grid[data-count] .type-cover > svg { position: absolute; inset-inline-end: 14px; inset-block-start: 14px; }
+.gallery-grid[data-count] .type-cover strong { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+@media (min-width: 601px) {
+  .gallery-grid[data-count="4"] .type-cover, .gallery-grid[data-count="5"] .type-cover, .gallery-grid[data-count="6"] .type-cover { min-height: 116px; gap: 12px; padding: 16px; }
+  .gallery-grid[data-count="4"] .type-cover strong, .gallery-grid[data-count="5"] .type-cover strong, .gallery-grid[data-count="6"] .type-cover strong { font-size: 1.5rem; }
+  .gallery-grid[data-count="4"] .gallery-entry > img, .gallery-grid[data-count="5"] .gallery-entry > img, .gallery-grid[data-count="6"] .gallery-entry > img { height: 116px; }
+}

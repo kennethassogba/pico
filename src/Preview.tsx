@@ -59,7 +59,7 @@ export function Preview({ plan, content, busy, onChange }: Props) {
   const pageSize = plan.view === 'gallery' ? (stageWidth < 600 || stageHeight < 440 ? 1 : 2) : plan.view === 'board' ? (stageWidth < 600 || stageHeight < 440 ? 1 : 3) : plan.view === 'pricing' || stageHeight < 440 ? 1 : plan.view === 'form' || stageHeight < 600 || photo ? 2 : 3;
   const pages = Math.max(1, Math.ceil(items.length / pageSize));
   const currentPage = Math.min(page, pages - 1);
-  const visible = items.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
+  const visible = plan.view === 'gallery' ? items : items.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
   const selectedItem = selected === null ? null : items[selected];
   const selectedPhoto = photoFor(selectedItem?.image);
 
@@ -124,8 +124,8 @@ export function Preview({ plan, content, busy, onChange }: Props) {
 
       {plan.view === 'board' && <div className="kanban-board">{[0, 1, 2].map(column => <section className="kanban-column" key={column} aria-label={content?.labels?.[column] || ['Todo', 'Doing', 'Done'][column]}><h3><span className={`board-state state-${column}`} />{content?.labels?.[column] || ['Todo', 'Doing', 'Done'][column]}<span>{visible.filter((item, i) => (statuses[currentPage * pageSize + i] ?? Math.max(0, ['Todo', 'Doing', 'Done'].indexOf(item.value))) === column).length}</span></h3>{visible.map((item, i) => { const index = currentPage * pageSize + i; const status = statuses[index] ?? Math.max(0, ['Todo', 'Doing', 'Done'].indexOf(item.value)); return status === column && <Card className="board-card" key={index}><CardContent><span className="item-index">{String(index + 1).padStart(2, '0')}</span><h4>{item.name}</h4><p>{item.detail}</p><Button variant="ghost" disabled={busy} onClick={() => setStatuses(old => ({ ...old, [index]: (status + 1) % 3 }))} aria-label={`Move ${item.name} to ${['Todo', 'Doing', 'Done'][(status + 1) % 3]}`}>{['Todo', 'Doing', 'Done'][(status + 1) % 3]}<ArrowRight size={13} /></Button></CardContent></Card>; })}</section>)}</div>}
 
-      {plan.view === 'gallery' && items.length > 0 && <div className="gallery-grid">{visible.map((item, i) => {
-        const index = currentPage * pageSize + i, image = photoFor(item.image);
+      {plan.view === 'gallery' && items.length > 0 && <div className="gallery-grid" data-count={items.length}>{visible.map((item, i) => {
+        const index = i, image = photoFor(item.image);
         return <button className={`gallery-entry ${image ? 'has-image' : 'is-typographic'} ${selected === index ? 'gallery-selected' : ''}`} key={index} aria-pressed={selected === index} onClick={() => { setSelected(index); collectionDialog.current?.showModal(); }}>
           {image ? <img src={image.src} alt={image.alt} width="960" height="640" loading="eager" /> : <span className="type-cover" data-edition={index % 3}><span className="cover-category">{item.value}</span><strong>{item.name}</strong><ArrowUpRight size={26} aria-hidden="true" /></span>}
           <span className="gallery-caption"><span>{image && <strong>{item.name}</strong>}<span>{item.detail}</span></span><span className="gallery-tag">{image && item.value}<ArrowUpRight size={16} aria-hidden="true" /></span></span>
@@ -134,7 +134,7 @@ export function Preview({ plan, content, busy, onChange }: Props) {
 
       {plan.view === 'itinerary' && <div className="itinerary-list">{visible.map((item, i) => <div className="itinerary-row" key={i}><span className="time">{item.value}</span><span className="timeline-dot" aria-hidden="true"><Clock3 size={15} /></span><div><h3>{item.name}</h3><p>{item.detail}</p></div></div>)}</div>}
 
-      {plan.view !== 'dashboard' && <Pager page={currentPage} pages={pages} setPage={setPage} />}
+      {plan.view !== 'dashboard' && plan.view !== 'gallery' && <Pager page={currentPage} pages={pages} setPage={setPage} />}
       </>}
     </>
     <dialog ref={collectionDialog} className="info-dialog collection-dialog" onClick={event => { if (event.target === event.currentTarget) collectionDialog.current?.close(); }}>
