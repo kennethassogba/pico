@@ -18,7 +18,7 @@ function feed(content, selected, pause = false) {
 }
 const recovery = [
   { type: 'plan', plan: plan('dashboard', 'violet', 'bars') },
-  { type: 'delta', text: '{"title":"Discarded partial result","description":"', gate: true },
+  { type: 'delta', text: '{"title":"Discarded partial result","description":"","items":[null', gate: true },
   { type: 'reset' },
   { type: 'delta', text: JSON.stringify(content) },
   { type: 'complete', content, generationModel: 'explicit-test-recovery:free', totalMs: 2400 },

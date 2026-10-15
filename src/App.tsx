@@ -114,7 +114,7 @@ export default function App() {
 
   function openHelp() { help.current?.showModal(); }
   const status = phase === 'deciding' ? 'Choosing a layout…' : phase === 'filling' ? 'Filling your interface…' : result ? 'Ready to try' : 'Ready for an idea';
-  const photos = [...new Set([plan?.visual, ...(content?.items || []).map(item => item.image)])].map(photoFor).filter(Boolean);
+  const photos = [...new Set([plan?.visual, ...(Array.isArray(content?.items) ? content.items : []).filter(item => item && typeof item === 'object').map(item => item.image)])].map(photoFor).filter(Boolean);
 
   return <div className={`app-shell ${plan || busy || error ? 'has-preview' : 'is-empty'}`}>
     <a className="skip-link" href="#prompt">Skip to prompt</a>
