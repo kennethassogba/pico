@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { decide, generation, handle, readBounded } from '../worker/index';
 import { contentSchema, requestSchema, type Plan } from '../src/schema';
 import { DECIDER, GENERATOR } from '../src/models';
+import { CONTENT_PROTOCOL, PROTOCOL_HEADER } from '../src/protocol';
 
 const content = {
   title: 'Website launch', description: 'Tasks for this weekend.', labels: ['Task', 'Category'],
@@ -16,7 +17,7 @@ const context = { waitUntil: vi.fn() };
 function request(body: unknown = { prompt: 'Make a checklist.' }, extra: Record<string, string> = {}) {
   return new Request('https://keff.uk/pico/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://keff.uk', ...extra }, body: JSON.stringify(body) });
 }
-afterEach(() => { vi.restoreAllMocks(); limiter.limit.mockResolvedValue({ success: true }); });
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); limiter.limit.mockResolvedValue({ success: true }); });
 
 describe('request boundary', () => {
   it('rejects cross-origin calls before calling a model', async () => {
@@ -132,5 +133,45 @@ describe('OpenAI Luna contract', () => {
   it('validates bounded output instead of executing generated code', () => {
     expect(contentSchema.safeParse({ ...content, items: [{ name: 'a'.repeat(101), detail: '', value: '' }] }).success).toBe(false);
     expect(contentSchema.safeParse(content).success).toBe(true);
+  });
+});
+
+
+describe('open-tab compatibility', () => {
+  const legacySchema = contentSchema.extend({ items: contentSchema.shape.items.max(6) });
+  for (const [header, maxItems] of [[undefined, 6], ['unknown', 6], [CONTENT_PROTOCOL, 12]] as const) {
+    it(`uses a ${maxItems}-item contract for ${header ?? 'an already-open tab'}`, async () => {
+      const fetcher = vi.fn(async (url: string | URL | Request, options?: RequestInit) => {
+        const body = JSON.parse(options!.body as string);
+        if (String(url).endsWith('/decisions')) return Response.json({ answers: [{ type: 'choice', name: 'view', choice: 'dashboard' }, { type: 'choice', name: 'accent', choice: 'blue' }, { type: 'choice', name: 'visual', choice: 'bars' }] });
+        const count = body.text.format.schema.properties.items.maxItems;
+        const filled = { ...content, items: Array.from({ length: count }, (_, i) => ({ name: `Category ${i + 1}`, detail: '', value: String(i + 1), image: null })) };
+        return new Response(sse(JSON.stringify(filled)));
+      });
+      vi.stubGlobal('fetch', fetcher);
+      const response = await handle(request({ prompt: 'Make a monthly spending dashboard with sample data in euros.' }, header ? { [PROTOCOL_HEADER]: header } : {}), env as never, context as never);
+      const events = (await response.text()).trim().split('\n').map(line => JSON.parse(line));
+      const complete = events.find(event => event.type === 'complete');
+      expect(events.filter(event => event.type === 'error')).toEqual([]);
+      expect(complete.content.items).toHaveLength(maxItems);
+      expect((maxItems === 6 ? legacySchema : contentSchema).safeParse(complete.content).success).toBe(true);
+      expect(response.headers.get(PROTOCOL_HEADER)).toBe(maxItems === 6 ? '1' : CONTENT_PROTOCOL);
+      const decision = JSON.parse(fetcher.mock.calls[0][1]!.body as string);
+      const choices = decision.questions.find((question: { name: string }) => question.name === 'view').choices.map((choice: { value: string }) => choice.value);
+      expect(choices.includes('calendar')).toBe(maxItems === 12);
+      const generated = JSON.parse(fetcher.mock.calls[1][1]!.body as string);
+      expect(generated.text.format.schema.properties.items.maxItems).toBe(maxItems);
+      expect(generated.instructions).toContain(`Use ${Math.min(8, maxItems)} items by default.`);
+    });
+  }
+  it('rejects oversized legacy output without leaking validation details or dropping entries', async () => {
+    const large = { ...content, items: Array.from({ length: 8 }, (_, i) => ({ name: `Item ${i}`, detail: '', value: '1' })) };
+    const fetcher = vi.fn(async () => new Response(sse(JSON.stringify(large))));
+    await expect(async () => { for await (const event of generation(input, plan, 'test-key', new AbortController().signal, fetcher as typeof fetch, 6)) void event; }).rejects.toThrow('The model could not finish this interface. Try again.');
+  });
+  it('does not cache the application document', async () => {
+    env.ASSETS.fetch.mockResolvedValue(new Response('<!doctype html><title>Pico</title>', { headers: { 'Cache-Control': 'public, max-age=0, must-revalidate' } }));
+    const response = await handle(new Request('https://keff.uk/pico/'), env as never, context as never);
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
   });
 });

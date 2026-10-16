@@ -7,6 +7,8 @@ import { Preview, samplePrompts } from './Preview';
 import { contentSchema, viewNames, type Content, type Plan, type Result } from './schema';
 import { DECIDER, GENERATOR } from './models';
 import { photoFor } from './media';
+import { CONTENT_PROTOCOL, PROTOCOL_HEADER } from './protocol';
+import { publicGenerationError } from './errors';
 
 type Phase = 'idle' | 'deciding' | 'filling';
 type Entry = { role: 'user' | 'assistant'; content: string };
@@ -74,7 +76,7 @@ export default function App() {
     const timeout = setTimeout(() => abort.abort('timeout'), 18_000);
     try {
       const response = await fetch('/pico/api/generate', {
-        method: 'POST', signal: abort.signal, headers: { 'Content-Type': 'application/json' },
+        method: 'POST', signal: abort.signal, headers: { 'Content-Type': 'application/json', [PROTOCOL_HEADER]: CONTENT_PROTOCOL },
         body: JSON.stringify({ prompt: text.trim(), history: history.slice(-6), ...(result ? { previous: { view: result.plan.view, content: result.content } } : {}) }),
       });
       if (!response.ok) { const data = await response.json() as { error?: string }; throw new Error(data.error || 'Pico could not connect. Try again.'); }
@@ -112,7 +114,7 @@ export default function App() {
       if (run !== revision.current || completed) return;
       restore();
       if (abort.signal.aborted && abort.signal.reason !== 'timeout') setNotice('Stopped. Your previous preview is still here.');
-      else setError(abort.signal.reason === 'timeout' ? 'The model took too long. Try again with a shorter request.' : err instanceof Error ? err.message : 'Pico could not connect. Try again.');
+      else setError(abort.signal.reason === 'timeout' ? 'The model took too long. Try again with a shorter request.' : publicGenerationError(err));
       setPrompt(text.trim());
     } finally { cancelAnimationFrame(paint); clearTimeout(timeout); if (run === revision.current) { controller.current = null; setPhase('idle'); } }
   }

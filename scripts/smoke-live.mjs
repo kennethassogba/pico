@@ -12,7 +12,7 @@ for (let attempt = 0; attempt < 12; attempt++) {
     const response = await fetch(new URL(path, base), { cache: 'no-store' });
     return response.status === 200 && !response.headers.get('content-type')?.includes('text/html');
   }));
-  if (paths.length >= 2 && checks.every(Boolean)) break;
+  if (paths.length >= 2 && checks.every(Boolean) && page.headers.get('Cache-Control') === 'no-store') break;
   assert.ok(attempt < 11, 'Referenced assets must resolve to bundles after propagation.');
   await new Promise(resolve => setTimeout(resolve, 1000));
 }
@@ -26,17 +26,20 @@ const image = Buffer.from(await card.arrayBuffer());
 assert.equal(image.readUInt32BE(16), 1200);
 assert.equal(image.readUInt32BE(20), 630);
 assert.match(html, /Pico/);
+assert.equal(page.headers.get('Cache-Control'), 'no-store');
 // Worker propagation can lag the asset upload at a particular edge too.
 let health;
 for (let attempt = 0; attempt < 30; attempt++) {
   health = await fetch(`${base}/api/health?release-check=${Date.now()}`, { cache: 'no-store' }).then(r => r.json());
-  if (health.ready && health.decisionModel === 'gpt-6-luna' && health.generationModel === 'gpt-6-luna' && health.provider === 'openai') break;
+  if (health.ready && health.decisionModel === 'gpt-6-luna' && health.generationModel === 'gpt-6-luna' && health.provider === 'openai' && health.contentProtocol === '2') break;
   if (attempt < 29) await new Promise(resolve => setTimeout(resolve, 1000));
 }
 assert.equal(health.ready, true);
 assert.equal(health.decisionModel, 'gpt-6-luna');
 assert.equal(health.generationModel, 'gpt-6-luna');
 assert.equal(health.provider, 'openai');
+assert.equal(health.contentProtocol, '2');
+assert.equal(health.maxItems, 12);
 assert.equal((await fetch(`${base}/api/generate`)).status, 405);
 assert.equal((await fetch(`${base}/api/generate`, { method: 'POST', headers: { Origin: 'https://other.example', 'Content-Type': 'application/json' }, body: '{"prompt":"a checklist"}' })).status, 403);
 console.log('Public page, assets, secret readiness, Luna model and API boundary verified.');

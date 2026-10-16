@@ -1,0 +1,44 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import { chromium } from 'playwright';
+const base = process.env.PICO_TEST_URL || 'http://127.0.0.1:5174/pico/';
+const browser = await chromium.launch({ headless: true });
+const content = count => ({ title: 'Monthly spending', description: '', labels: ['Category', 'EUR'], items: Array.from({ length: count }, (_, i) => ({ name: `Category ${i + 1}`, value: String(100 + i * 10), detail: '' })), metrics: [{ label: 'Categories', value: String(count) }, { label: 'Budget', value: '€2,000' }] });
+const body = count => [{ type: 'plan', plan: { view: 'dashboard', accent: 'blue', visual: 'bars', variant: 'standard', model: 'explicit-regression-fixture', confidence: .9, decisionMs: 100 } }, { type: 'complete', content: content(count), generationModel: 'explicit-regression-fixture', totalMs: 200 }].map(event => JSON.stringify(event)).join('\n') + '\n';
+try {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const page = await context.newPage(); const errors = []; page.on('pageerror', error => errors.push(error.message));
+  let calls = 0;
+  await page.route('**/pico/api/generate', route => {
+    assert.equal(route.request().headers()['x-pico-protocol'], '2');
+    calls++;
+    if (calls === 4) return route.fulfill({ status: 502, contentType: 'application/json', body: JSON.stringify({ error: '[{"origin":"array","code":"too_big","maximum":6,"path":["items"]}]' }) });
+    if (calls === 5) return route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ error: 'Pico is busy. Wait a minute, then try again.' }) });
+    return route.fulfill({ contentType: 'application/x-ndjson', body: body(calls === 1 ? 8 : calls === 2 ? 13 : 12) });
+  });
+  await page.goto(base);
+  const prompt = page.locator('#prompt');
+  const submit = async text => { await prompt.fill(text); await page.getByRole('button', { name: 'Generate interface', exact: true }).click(); };
+  await submit('Make a monthly spending dashboard with sample data in euros.');
+  await page.getByText('Ready to try', { exact: true }).waitFor();
+  assert.equal(await page.locator('.data-bar').count(), 8, 'The current client must retain all eight values.');
+  await submit('Show thirteen categories');
+  await page.getByText('Pico could not finish this interface. Try again.', { exact: true }).waitFor();
+  assert.equal(await page.locator('.data-bar').count(), 8, 'Validation failure must preserve the completed chart.');
+  assert.equal(await prompt.inputValue(), 'Show thirteen categories');
+  assert.equal(await page.locator('body').innerText().then(text => /too_big|maximum|ZodError|expected array/i.test(text)), false);
+  await page.getByRole('button', { name: 'Try again', exact: true }).click();
+  await page.getByText('Ready to try', { exact: true }).waitFor();
+  assert.equal(await page.locator('.data-bar').count(), 12, 'Retry must recover with all twelve supported values.');
+  await submit('Try another update');
+  await page.getByText('Pico could not finish this interface. Try again.', { exact: true }).waitFor();
+  assert.equal(await page.locator('.data-bar').count(), 12);
+  await page.getByRole('button', { name: 'Try again', exact: true }).click();
+  await page.getByText('Pico is busy. Wait a minute, then try again.', { exact: true }).waitFor();
+  assert.deepEqual(errors, []);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  await fs.mkdir('output/playwright', { recursive: true });
+  await page.screenshot({ path: 'output/playwright/error-recovery-mobile.png' });
+  await context.close();
+  console.log('Eight and twelve values, sanitized validation/provider errors, previous-preview preservation, retry and actionable throttling verified.');
+} finally { await browser.close(); }

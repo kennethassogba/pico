@@ -56,3 +56,7 @@ Creative collections use typographic covers when there is no exact matching imag
 ## Interactive catalog
 
 Twelve views support standard, compact and split compositions. All entries remain on one scrollable preview page. Default counts range from three pricing tiers to eight chart points or board tasks, with a maximum of twelve entries. Chart points support pointer dragging, arrow keys, direct numeric edits and reset. Calendar, additive calculator, expandable reference and interval timer views run locally after generation.
+
+### Client compatibility
+
+The browser and MCP send `X-Pico-Protocol: 2` to enable all twelve layouts and up to twelve items. Requests without it retain the original eight layouts and six-item bound, including the model's output schema and default item count. This keeps already-open older tabs usable after a deployment. HTML uses `Cache-Control: no-store`; fingerprinted assets remain independently cached. The UI only displays known recovery messages and keeps internal validation details out of the error panel.

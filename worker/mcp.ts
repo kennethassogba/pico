@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/server';
 import { createMcpHandler } from 'agents/mcp/server';
 import { requestSchema } from '../src/schema';
+import { CONTENT_PROTOCOL, PROTOCOL_HEADER } from '../src/protocol';
 import { componentCatalog } from './discovery';
 import { z } from 'zod';
 
@@ -16,7 +17,7 @@ export async function mcp(request: Request, ctx: ExecutionContext, generate: (re
       inputSchema: requestSchema,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     }, async input => {
-      const headers = new Headers({ 'Content-Type': 'application/json' });
+      const headers = new Headers({ 'Content-Type': 'application/json', [PROTOCOL_HEADER]: CONTENT_PROTOCOL });
       const ip = request.headers.get('CF-Connecting-IP');
       if (ip) headers.set('CF-Connecting-IP', ip);
       const response = await generate(new Request(new URL('/pico/api/generate', request.url), { method: 'POST', headers, signal: request.signal, body: JSON.stringify(input) }));

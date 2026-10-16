@@ -31,10 +31,12 @@ Pico turns a prompt into an interactive interface built from twelve prebuilt sha
 - Agent skill: ${home}/skills/generate-interface/SKILL.md
 
 ## Generate an interface
-POST ${home}/api/generate with Content-Type: application/json and a JSON body:
+POST ${home}/api/generate with Content-Type: application/json, X-Pico-Protocol: 2 and a JSON body:
 \`\`\`json
 {"prompt":"Make a launch checklist","history":[]}
 \`\`\`
+X-Pico-Protocol: 2 enables all twelve layouts and up to twelve items. Requests without this header keep the original eight layouts and six-item limit for older clients.
+
 The response is newline-delimited JSON. A plan event selects a layout; delta events stream JSON text; complete returns validated content, the actual generation model and totalMs. Error events contain a recoverable message. Do not treat partial content as complete.
 
 MCP tools: list_components and generate_interface. The generation tool returns the completed interface data. To refine, supply previous: {view, content}. Prompts are 3–1,200 characters; history has at most six user/assistant entries. No model override is accepted.
@@ -75,7 +77,7 @@ export async function discovery(request: Request): Promise<Response | null> {
     openapi: '3.1.0', info: { title: 'Pico', version: '1.1.0', description: 'Generate illustrative interface data using OpenAI Luna. No conversation storage.' }, servers: [{ url: home }],
     paths: {
       '/api/health': { get: { operationId: 'getHealth', responses: { '200': { description: 'Provider configuration and requested model IDs.' } } } },
-      '/api/generate': { post: { operationId: 'generateInterface', description: 'Streams plan, delta, complete or error events as NDJSON. Same per-location rate limits as MCP. Browser calls require a same-origin Origin.', requestBody: { required: true, content: { 'application/json': { schema: z.toJSONSchema(requestSchema, { io: 'input' }) } } }, responses: {
+      '/api/generate': { post: { operationId: 'generateInterface', parameters: [{ name: 'X-Pico-Protocol', in: 'header', required: false, schema: { type: 'string', enum: ['2'] }, description: 'Use 2 for twelve layouts and twelve items. Omission preserves the original eight layouts and six-item limit.' }], description: 'Streams plan, delta, complete or error events as NDJSON. Same per-location rate limits as MCP. Browser calls require a same-origin Origin.', requestBody: { required: true, content: { 'application/json': { schema: z.toJSONSchema(requestSchema, { io: 'input' }) } } }, responses: {
         '200': { description: 'NDJSON stream. Only complete events contain validated content; errors may occur after HTTP 200.', content: { 'application/x-ndjson': { schema: { type: 'string' } } } },
         '400': { description: 'Invalid input.' }, '413': { description: 'Body exceeds 16 KB.' }, '429': { description: 'Rate limited; retry after a minute.' }, '503': { description: 'Provider not configured.' },
       } } },
